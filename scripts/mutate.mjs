@@ -152,7 +152,7 @@ const MUTATIONS = [
     what: 'guided tamper step forgets to flip the bit',
     file: 'src/ui/guided.ts',
     anchor: "withField(PULSE, 'localRandomValue', flipFirstByte(PULSE.localRandomValue))",
-    replace: "withField(PULSE, 'localRandomValue', PULSE.localRandomValue)",
+    replace: "withField(PULSE, 'localRandomValue', flipFirstByte(flipFirstByte(PULSE.localRandomValue)))",
     owner: { kind: 'e2e', grep: 'step 2: one flipped bit' },
   },
 ]
