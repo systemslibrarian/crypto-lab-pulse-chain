@@ -42,8 +42,14 @@ export function mountAct6(host: HTMLElement): void {
         if (chosen.has(i)) chosen.delete(i)
         else chosen.add(i)
         b.setAttribute('aria-pressed', String(chosen.has(i)))
-        out.setAttribute('data-stale', 'true')
-        status.textContent = `${chosen.size} signer${chosen.size === 1 ? '' : 's'} selected. Combine to produce a signature.`
+        // The verdict on screen was for the old signer set: retire it rather
+        // than leave a result that no longer describes the selection.
+        const had = out.querySelector('[data-check="a6-group"]') !== null
+        clear(out)
+        status.textContent =
+          `${chosen.size} signer${chosen.size === 1 ? '' : 's'} selected.` +
+          (had ? ' The previous result was for a different set and has been cleared;' : '') +
+          ' combine to produce a signature.'
       })
       signerRow.appendChild(b)
     }
@@ -52,7 +58,6 @@ export function mountAct6(host: HTMLElement): void {
 
   function doCombine(): void {
     clear(out)
-    out.removeAttribute('data-stale')
     if (chosen.size === 0) {
       out.append(verdictEl('a6-group', 'fail', 'NO SIGNERS', 'select at least one signer.'))
       return
@@ -130,10 +135,11 @@ export function mountAct6(host: HTMLElement): void {
   }
 
   const combineBtn = button('Combine partial signatures', doCombine)
-  const gpk = el('span', { class: 'mono', 'data-claim': 'a6-gpk', text: abbrev(dealing.groupPublicKey, 16, 8) })
+  const gpk = el('span', { class: 'mono', 'data-claim': 'a6-gpk', 'data-full': dealing.groupPublicKey, text: abbrev(dealing.groupPublicKey, 16, 8) })
   const redeal = button('New key shares', () => {
     dealing = deal(T, N)
     gpk.textContent = abbrev(dealing.groupPublicKey, 16, 8)
+    gpk.setAttribute('data-full', dealing.groupPublicKey)
     partials = dealing.shares.map((s) => partialSign(s, ROUND))
     tried.length = 0
     clear(out)
