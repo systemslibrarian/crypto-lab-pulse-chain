@@ -262,7 +262,10 @@ export async function boot(page: Page, theme: 'dark'): Promise<void> {
   await expect(page.locator('[data-check="a4-headline"]')).toContainText('VERIFIED — AND KNOWN TO THE OPERATOR FIRST');
   await expect(page.locator('[data-check="a5-pairing"]')).toContainText('VALID ROUND');
   await expect(page.locator('[data-check="a6-group"]')).toContainText('VALID GROUP SIGNATURE');
-  await expect(page.locator('td[data-property]')).toHaveCount(8);
+  await expect(page.locator('td[data-property]')).toHaveCount(10);
+  await expect(page.locator('[data-claim="live-finding"] [data-check="f-sig"]')).toHaveAttribute('data-verdict', 'fail');
+  // The guided experiment ships unstarted: only its opening is on the page.
+  await expect(page.locator('#guided .gstep')).toHaveCount(0);
 
   // ── Every shipped control default ───────────────────────────────────────
   await expect(page.locator('#a1-pulse-latest')).toBeChecked();
@@ -664,6 +667,36 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   await page.keyboard.press('Tab');
   await expect(page.locator('a.cl-skip-link')).toBeFocused();
   await scanAt('the shared skip link focused');
+
+  // ── Guided experiment, step by step ─────────────────────────────────────
+  await page.locator('.cl-hero-cta a', { hasText: 'Start the experiment' }).hover();
+  await scanAt('hero call-to-action hovered');
+  await page.locator('#guided').getByRole('button', { name: 'Start the experiment' }).click();
+  await page.getByRole('button', { name: 'Verify this pulse' }).click();
+  await expect(page.locator('[data-check="g-verified"]')).toContainText('VERIFIED');
+  await scanAt('Guided 1: pulse verified, question open');
+  await page.locator('#guided').getByRole('button', { name: 'Not necessarily' }).click();
+  await page.getByRole('button', { name: 'Tamper with it: flip one bit' }).click();
+  await expect(page.locator('[data-check="g-tamper"]')).toContainText('TAMPERING DETECTED');
+  await scanAt('Guided 2: one bit flipped, tampering detected');
+  await page.getByRole('button', { name: 'Restore the original pulse' }).click();
+  await page.locator('#guided-3').getByRole('button', { name: 'No', exact: true }).click();
+  await expect(page.locator('[data-claim="g-lesson"]')).toContainText('Nothing failed');
+  await scanAt('Guided 3: everything passes — the operator knew first');
+  await page.getByRole('button', { name: 'What if no single operator holds the key?' }).click();
+  for (const n of ['A', 'B']) await page.getByRole('button', { name: `Operator ${n}` }).click();
+  await page.getByRole('button', { name: 'Sign with these operators' }).click();
+  await expect(page.locator('[data-check="g-group"]')).toHaveAttribute('data-verdict', 'fail');
+  await scanAt('Guided 4: two operators — no valid signature');
+  await page.getByRole('button', { name: 'Operator C' }).click();
+  await page.getByRole('button', { name: 'Sign with these operators' }).click();
+  for (const n of ['A', 'C', 'D', 'E']) await page.getByRole('button', { name: `Operator ${n}` }).click();
+  await page.getByRole('button', { name: 'Sign with these operators' }).click();
+  await expect(page.locator('[data-claim="g-same"]')).toContainText('SAME OUTPUT');
+  await openDetails(page, '#guided-4', 'Want to see what actually happened?');
+  await scanAt('Guided 4: same output from two quorums, maths open, finale shown');
+  await page.getByRole('button', { name: 'Operator B' }).hover();
+  await scanAt('a pressed operator circle hovered');
 
   // ── Act 1 ───────────────────────────────────────────────────────────────
   await page.locator('label[for="a1-layout-draft"]').click();

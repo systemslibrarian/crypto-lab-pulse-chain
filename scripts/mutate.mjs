@@ -131,6 +131,30 @@ const MUTATIONS = [
     replace: '  lengthPrefix: 4,\n  extStatus: 8,',
     owner: { kind: 'vitest', file: 'src/nist/nist.test.ts', name: 'equals the published outputValue' },
   },
+  {
+    id: 'M14',
+    what: 'guided punchline lesson deleted (negative claim must stay on screen)',
+    file: 'src/ui/guided.ts',
+    anchor: "text: 'Nothing failed. That is the lesson.'",
+    replace: "text: ''",
+    owner: { kind: 'e2e', grep: 'step 3 (negative claim)' },
+  },
+  {
+    id: 'M15',
+    what: 'finding card reports the signature as passing regardless',
+    file: 'src/ui/finding.ts',
+    anchor: "row('Signature verification', 'f-sig', sig.ok, sig.code)",
+    replace: "row('Signature verification', 'f-sig', true, sig.code)",
+    owner: { kind: 'e2e', grep: 'every row but the signature passes' },
+  },
+  {
+    id: 'M16',
+    what: 'guided tamper step forgets to flip the bit',
+    file: 'src/ui/guided.ts',
+    anchor: "withField(PULSE, 'localRandomValue', flipFirstByte(PULSE.localRandomValue))",
+    replace: "withField(PULSE, 'localRandomValue', PULSE.localRandomValue)",
+    owner: { kind: 'e2e', grep: 'step 2: one flipped bit' },
+  },
 ]
 
 const only = process.argv.slice(2)

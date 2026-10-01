@@ -22,15 +22,15 @@ function cell(prop: string, beacon: string, level: Level, text: string, act: str
     { 'data-property': prop, 'data-beacon': beacon, 'data-level': level },
     el('span', { class: `prop prop-${level}` }, el('span', { 'aria-hidden': 'true', text: `${ICON[level]} ` }), WORD[level]),
     el('span', { class: 'prop-text', text: ` ${text}` }),
-    el('a', { href: `#${act}`, class: 'prop-act', text: `See ${act.replace('act', 'Act ')}` }),
+    el('a', { href: `#${act}`, class: 'prop-act', text: `Show me why (${act === 'finding' ? 'live finding' : act.replace('act', 'Act ')})` }),
   )
 }
 
 export async function mountProperties(host: HTMLElement): Promise<void> {
   const sec = panel(
     'properties',
-    'The four properties, side by side',
-    'A beacon is judged on four things. These are what the checks in Acts 1–6 establish for each one, and what they cannot.',
+    'What you can and cannot check, side by side',
+    'Tamper evidence plus the four properties a beacon is judged on. Each verdict comes from a check the page ran; follow its link to the experiment that shows it.',
   )
   const latest = NIST.recent.at(-1) as Pulse
   const sig = await checkSignature(latest, certFor(latest))
@@ -41,6 +41,12 @@ export async function mountProperties(host: HTMLElement): Promise<void> {
   const drandOk = verifyRound(d.info.scheme, d.info.public_key, r.round, r.signature, r.previous_signature).ok
 
   const rows: Array<[string, string, HTMLElement, HTMLElement]> = [
+    [
+      'tamper',
+      'Tampering is detectable',
+      cell('tamper', 'nist', 'holds', 'SHA-512 hash chain: one flipped bit breaks the pulse’s own hash and every later link.', 'act2'),
+      cell('tamper', 'drand', 'holds', 'Each round’s BLS signature covers its round number (and, on the default chain, the previous signature).', 'act5'),
+    ],
     [
       'unpredictability',
       'Unpredictability',
@@ -58,7 +64,7 @@ export async function mountProperties(host: HTMLElement): Promise<void> {
       'Public verifiability',
       sig.ok
         ? cell('verifiability', 'nist', 'holds', 'Hash chain plus an RSA signature that verifies against the published certificate.', 'act4')
-        : cell('verifiability', 'nist', 'partial', `Hashes and links verify (Acts 1–3). The newest pinned pulse’s signature cannot be checked: ${sig.detail}.`, 'act4'),
+        : cell('verifiability', 'nist', 'partial', `Hashes and links verify (Acts 1–3). The newest pinned pulse’s signature cannot be checked: ${sig.detail}.`, 'finding'),
       drandOk
         ? cell('verifiability', 'drand', 'holds', 'Anyone holding the group public key checks a round with one pairing equation.', 'act5')
         : cell('verifiability', 'drand', 'fails', 'The pinned round did not verify.', 'act5'),

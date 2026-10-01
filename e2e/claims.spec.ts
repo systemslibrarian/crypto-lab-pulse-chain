@@ -363,3 +363,115 @@ test('[hidden] probe: nothing marked hidden is painted', async ({ page }) => {
   const painted = await page.$$eval('[hidden]', (els) => els.filter((e) => (e as HTMLElement).checkVisibility()).length)
   expect(painted).toBe(0)
 })
+
+test.describe('Guided experiment', () => {
+  async function verifyStep(page: Page) {
+    await page.locator('#guided').getByRole('button', { name: 'Start the experiment' }).click()
+    await page.getByRole('button', { name: 'Verify this pulse' }).click()
+    await expect(page.locator('[data-check="g-verified"]')).toBeVisible()
+  }
+
+  test('ships unstarted, and step 1 verifies pulse #1925733 on all five checks', async ({ page }) => {
+    await expect(page.locator('#guided .gstep')).toHaveCount(0)
+    await verifyStep(page)
+    for (const c of ['g-output', 'g-link', 'g-precommit', 'g-certid', 'g-sig']) {
+      await expect(page.locator(`#guided-1 [data-check="${c}"]`)).toHaveAttribute('data-verdict', 'pass')
+    }
+    await expect(page.locator('[data-check="g-verified"]')).toHaveText(/VERIFIED/)
+    // Independently: the same pulse's signature verifies under NIST's pinned key.
+    const p = NIST.preRotation.at(-1)
+    await expect(page.locator('#guided-1')).toContainText(`#${p.pulseIndex}`)
+    const cert = new X509Certificate(NIST.certificates[p.certificateId])
+    expect(nodeVerify('sha512', signedBytes(p), cert.publicKey, Buffer.from(p.signatureValue, 'hex'))).toBe(true)
+  })
+
+  test('step 2: one flipped bit fails exactly the three checks that cover it', async ({ page }) => {
+    await verifyStep(page)
+    await page.locator('#guided').getByRole('button', { name: 'Yes', exact: true }).click()
+    await page.getByRole('button', { name: 'Tamper with it: flip one bit' }).click()
+    const s = page.locator('#guided-2')
+    await expect(s.locator('[data-check="g-output"]')).toHaveAttribute('data-code', 'OUTPUT_MISMATCH')
+    await expect(s.locator('[data-check="g-precommit"]')).toHaveAttribute('data-code', 'PRECOMMIT_MISMATCH')
+    await expect(s.locator('[data-check="g-sig"]')).toHaveAttribute('data-code', 'SIG_INVALID')
+    await expect(s.locator('[data-check="g-link"]')).toHaveAttribute('data-verdict', 'pass')
+    await expect(s.locator('[data-check="g-certid"]')).toHaveAttribute('data-verdict', 'pass')
+    await expect(s.locator('[data-check="g-tamper"]')).toContainText('3 of 5 checks fail')
+    // Independently: the flipped value no longer opens the previous commitment.
+    const p = NIST.preRotation.at(-1)
+    const b = Buffer.from(p.localRandomValue, 'hex'); b[0] ^= 1
+    expect(createHash('sha512').update(b).digest('hex').toUpperCase()).not.toBe(NIST.preRotation.at(-2).precommitmentValue)
+  })
+
+  test('step 3 (negative claim): everything passes, and the page says NIST knew first', async ({ page }) => {
+    await verifyStep(page)
+    await page.locator('#guided').getByRole('button', { name: 'Not necessarily' }).click()
+    await page.getByRole('button', { name: 'Tamper with it: flip one bit' }).click()
+    await page.getByRole('button', { name: 'Restore the original pulse' }).click()
+    await page.locator('#guided-3').getByRole('button', { name: 'Yes', exact: true }).click()
+    const fx = page.locator('[data-fixture="guided-operator-knows"]')
+    await expect(fx).toBeVisible()
+    // Everything green in this state.
+    for (const c of ['g-output', 'g-link', 'g-precommit', 'g-certid', 'g-sig']) {
+      await expect(page.locator(`#guided-3 [data-check="${c}"]`)).toHaveAttribute('data-verdict', 'pass')
+    }
+    await expect(page.locator('#guided-3 [data-verdict="fail"]')).toHaveCount(0)
+    await expect(fx.locator('[data-check="g-climax"]')).toHaveAttribute('data-verdict', 'warn')
+    // The limitation, visible, in this state.
+    await expect(fx.locator('[data-claim="g-knew"]')).toContainText('NIST already knew the secret value')
+    await expect(fx.locator('[data-claim="g-lesson"]')).toHaveText('Nothing failed. That is the lesson.')
+    // The timeline is the fixtures' own: commitment published one pulse before the reveal.
+    const p = NIST.preRotation.at(-1), prev = NIST.preRotation.at(-2)
+    await expect(fx).toContainText(`${prev.timeStamp.slice(11, 16)} UTC`)
+    await expect(fx).toContainText(`${p.timeStamp.slice(11, 16)} UTC`)
+    expect(createHash('sha512').update(Buffer.from(p.localRandomValue, 'hex')).digest('hex').toUpperCase()).toBe(prev.precommitmentValue)
+  })
+
+  test('step 4: two quorums print one signature; two operators print none', async ({ page }) => {
+    await verifyStep(page)
+    await page.locator('#guided').getByRole('button', { name: 'Not necessarily' }).click()
+    await page.getByRole('button', { name: 'Tamper with it: flip one bit' }).click()
+    await page.getByRole('button', { name: 'Restore the original pulse' }).click()
+    await page.locator('#guided-3').getByRole('button', { name: 'No', exact: true }).click()
+    await page.getByRole('button', { name: 'What if no single operator holds the key?' }).click()
+    const sign = page.getByRole('button', { name: 'Sign with these operators' })
+    for (const n of ['A', 'B']) await page.getByRole('button', { name: `Operator ${n}` }).click()
+    await sign.click()
+    await expect(page.locator('[data-check="g-group"]')).toContainText('2 OF 3')
+    await expect(page.locator('[data-claim="g-sigs"]')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Operator C' }).click()
+    await sign.click()
+    for (const n of ['A', 'B', 'D', 'E']) await page.getByRole('button', { name: `Operator ${n}` }).click()
+    await sign.click()
+    const sigs = await page.locator('[data-claim="g-sigs"] [data-sig]').evaluateAll((els) => els.map((e) => e.getAttribute('data-sig')))
+    expect(sigs).toHaveLength(2)
+    expect(new Set(sigs).size).toBe(1)
+    await expect(page.locator('[data-claim="g-same"]')).toContainText('2 different quorums, one signature')
+    await expect(page.locator('.gfinal')).toContainText('Neither proves that the publisher didn’t know the value first.')
+  })
+})
+
+test.describe('Live deployment finding', () => {
+  test('every row but the signature passes, and the wording stays narrow', async ({ page }) => {
+    const card = page.locator('[data-claim="live-finding"]')
+    for (const c of ['f-output', 'f-link', 'f-precommit', 'f-certid']) {
+      await expect(card.locator(`[data-check="${c}"]`)).toHaveAttribute('data-verdict', 'pass')
+    }
+    await expect(card.locator('[data-check="f-sig"]')).toHaveAttribute('data-code', 'SIG_SIZE_MISMATCH')
+    await expect(card).toContainText(`Observed: ${NIST.rotation.timeStamp.slice(0, 10)}`)
+    await expect(card).toContainText(`Rechecked: ${NIST.fetchedAt.slice(0, 10)}`)
+    const p = NIST.recent.at(-1)
+    const cert = new X509Certificate(NIST.certificates[p.certificateId])
+    await expect(card).toContainText(`signature is ${Buffer.from(p.signatureValue, 'hex').length * 8} bits`)
+    await expect(card).toContainText(`${cert.publicKey.asymmetricKeyDetails?.modulusLength} bits`)
+    const claim = card.locator('[data-claim="finding-claim"]')
+    await expect(claim).toContainText('Origin cannot be verified against the certificate the pulse names')
+    await expect(claim).toContainText('not a claim that the beacon is compromised')
+  })
+
+  test('the tamper row closes the comparison with both beacons holding', async ({ page }) => {
+    for (const b of ['nist', 'drand']) {
+      await expect(page.locator(`td[data-property="tamper"][data-beacon="${b}"]`)).toHaveAttribute('data-level', 'holds')
+    }
+    await expect(page.locator('td[data-property="verifiability"][data-beacon="nist"] a')).toHaveAttribute('href', '#finding')
+  })
+})
