@@ -1,0 +1,105 @@
+{
+ "_source": "Captured verbatim from https://api.drand.sh on 2026-10-01 (UTC): /v2/chains/{hash}/info, /v2/chains/{hash}/rounds/{n}, and the v1 /{hash}/public/{n} response for the same round. The v2 round response omits `randomness`; `v1Randomness` is the value the v1 endpoint publishes for that round, kept so SHA-256(signature) can be compared against something drand itself published. Nothing in this file is computed by the lab.",
+ "fetchedAt": "2026-10-01T14:40:00Z",
+ "default": {
+  "info": {
+   "public_key": "868f005eb8e6e4ca0a47c8a77ceaa5309a47978a7c71bc5cce96366b5d7a569937c529eeda66c7293784a9402801af31",
+   "period": 30,
+   "genesis_time": 1595431050,
+   "genesis_seed": "176f93498eac9ca337150b46d21dd58673ea4e3581185f869672e59fa4cb390a",
+   "chain_hash": "8990e7a9aaed2ffed73dbd7092123d6f289930540d7651336225dc172e51b2ce",
+   "scheme": "pedersen-bls-chained",
+   "beacon_id": "default"
+  },
+  "genesisRounds": [
+   {
+    "round": 1,
+    "signature": "8d61d9100567de44682506aea1a7a6fa6e5491cd27a0a0ed349ef6910ac5ac20ff7bc3e09d7c046566c9f7f3c6f3b10104990e7cb424998203d8f7de586fb7fa5f60045417a432684f85093b06ca91c769f0e7ca19268375e659c2a2352b4655",
+    "previous_signature": "176f93498eac9ca337150b46d21dd58673ea4e3581185f869672e59fa4cb390a",
+    "v1Randomness": "101297f1ca7dc44ef6088d94ad5fb7ba03455dc33d53ddb412bbc4564ed986ec"
+   },
+   {
+    "round": 2,
+    "signature": "aa18facd2d51b616511d542de6f9af8a3b920121401dad1434ed1db4a565f10e04fad8d9b2b4e3e0094364374caafe9b10478bf75650124831509c638b5a36a7a232ec70289f8751a2adb47fc32eb70b57dc81c39d48cbcac9fec46cdfc31663",
+    "previous_signature": "8d61d9100567de44682506aea1a7a6fa6e5491cd27a0a0ed349ef6910ac5ac20ff7bc3e09d7c046566c9f7f3c6f3b10104990e7cb424998203d8f7de586fb7fa5f60045417a432684f85093b06ca91c769f0e7ca19268375e659c2a2352b4655",
+    "v1Randomness": "e8fee7dac6eb2b89df97d631cfccedbada7d5d05495bb546eef462e4145fdf8f"
+   },
+   {
+    "round": 3,
+    "signature": "a7b0877eaea7a0222f4c39a2c03434c34f5fe3ea47c533d24b88e5c3053b84775ccb78e984addcb55173f40428513f280cc6e0fccc3c89bb1625c7c0b477deb6faae43fc6ec036f09233bf38da16586b3042dd01a7e9ed97c8bafa343cc6071e",
+    "previous_signature": "aa18facd2d51b616511d542de6f9af8a3b920121401dad1434ed1db4a565f10e04fad8d9b2b4e3e0094364374caafe9b10478bf75650124831509c638b5a36a7a232ec70289f8751a2adb47fc32eb70b57dc81c39d48cbcac9fec46cdfc31663",
+    "v1Randomness": "5e0c316703de0d11cc63439a26a5082ce966f4f1e4068cd64b35fee906a0f84b"
+   }
+  ],
+  "recentRounds": [
+   {
+    "round": 6514464,
+    "signature": "8a9c163bb2ade313b333d8b2279d8099cf92ca904c49313d1eeaac4c1e86970148766c3981fd9a6a1879013903bebbc2032d311d44150a968a9f0d8c9dc3fd56c740d32d3e9b6f7efcf1427eb8beda7e41348c320e88f234470e741054838d2d",
+    "previous_signature": "b555a2b2d138b3a449025e698f818519465a0b8a90074adc1e62bf20215f13092d969fab7f5a9dbaf0c8bc557b48fca71918a38a1210197d838940b81f44c3769d1b55eb74c8627f5542558952479c6434b86a630a9d4ae2fe0ba167d2050122",
+    "v1Randomness": "28adbc4b32be365e9919be696006f6c73a35541cd7c235d42c657521f8055590"
+   },
+   {
+    "round": 6514465,
+    "signature": "869ac89d38dbb15c29689be8cf29510867dd5fa4ceb3156518e74d6dafd409f17c3d446417d5634edd594bcacb935c5b08d9b6fdcae36413fba1c30ac82bc6fec2dc59e6820e4761c7702145b03d5013bbd5ff04d0b198dc8b2ecbe92f1bd8d2",
+    "previous_signature": "8a9c163bb2ade313b333d8b2279d8099cf92ca904c49313d1eeaac4c1e86970148766c3981fd9a6a1879013903bebbc2032d311d44150a968a9f0d8c9dc3fd56c740d32d3e9b6f7efcf1427eb8beda7e41348c320e88f234470e741054838d2d",
+    "v1Randomness": "939bbaf48753bd8658b06d64258489483c619f24010686b34ced6fbfac9aedb2"
+   },
+   {
+    "round": 6514466,
+    "signature": "903ea6d0958771c9e9e2d6a40a242bb7efeb19fdb7429ff2a1c4be0368bc645c519f021b192e55a35d8505a17408f1ad19b340d5fc7bfa52d77a6b71c6ccb619d891de540d622401153d469371b2bdada0b3191526b8f43b39832e855ba93e31",
+    "previous_signature": "869ac89d38dbb15c29689be8cf29510867dd5fa4ceb3156518e74d6dafd409f17c3d446417d5634edd594bcacb935c5b08d9b6fdcae36413fba1c30ac82bc6fec2dc59e6820e4761c7702145b03d5013bbd5ff04d0b198dc8b2ecbe92f1bd8d2",
+    "v1Randomness": "f2625170c07fa9a031f6e214767169d3cb6810000d0b7c2b91aa2156366dbbb2"
+   },
+   {
+    "round": 6514467,
+    "signature": "a52c55a8dca8f59fbd290cd11e53b1177458a960e5602cc5352fb629f2126bfb06beb45c1c48743ee1db8b79b7d8112707c15fed8092a03242cf8cebfc126efec8ae641ee52422221b878f63e5914a51d37d70f84e8b368b314eadbe763b02ed",
+    "previous_signature": "903ea6d0958771c9e9e2d6a40a242bb7efeb19fdb7429ff2a1c4be0368bc645c519f021b192e55a35d8505a17408f1ad19b340d5fc7bfa52d77a6b71c6ccb619d891de540d622401153d469371b2bdada0b3191526b8f43b39832e855ba93e31",
+    "v1Randomness": "e129b2fb0c6e0c5f12ad91c7745f211cf7e20727f5714fb3e85eb294dd70db1e"
+   },
+   {
+    "round": 6514468,
+    "signature": "b6e64085b85273b76f1f645b29f350181e9880828ed97916188bf0081c1ad77740674c86dbfec073238d5cb3c8dcdc050df814456b8aa304a19cd63323754c39d88662f1c879a20280d9f922d9cea938625e77911281d6679853e093744d11f0",
+    "previous_signature": "a52c55a8dca8f59fbd290cd11e53b1177458a960e5602cc5352fb629f2126bfb06beb45c1c48743ee1db8b79b7d8112707c15fed8092a03242cf8cebfc126efec8ae641ee52422221b878f63e5914a51d37d70f84e8b368b314eadbe763b02ed",
+    "v1Randomness": "24af0fff5b0a312bb1e53dbeb12da56b96fb883d5df352fd3a4fdac27a40a5b5"
+   }
+  ]
+ },
+ "quicknet": {
+  "info": {
+   "public_key": "83cf0f2896adee7eb8b5f01fcad3912212c437e0073e911fb90022d3e760183c8c4b450b6a0a6c3ac6a5776a2d1064510d1fec758c921cc22b0e17e63aaf4bcb5ed66304de9cf809bd274ca73bab4af5a6e9c76a4bc09e76eae8991ef5ece45a",
+   "period": 3,
+   "genesis_time": 1692803367,
+   "genesis_seed": "f477d5c89f21a17c863a7f937c6a6d15859414d2be09cd448d4279af331c5d3e",
+   "chain_hash": "52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971",
+   "scheme": "bls-unchained-g1-rfc9380",
+   "beacon_id": "quicknet"
+  },
+  "rounds": [
+   {
+    "round": 1,
+    "signature": "b55e7cb2d5c613ee0b2e28d6750aabbb78c39dcc96bd9d38c2c2e12198df95571de8e8e402a0cc48871c7089a2b3af4b",
+    "v1Randomness": "1466a6cd24e327188770752f6134001c64d6efcc590ccc26b721611ad96f165a"
+   },
+   {
+    "round": 32687229,
+    "signature": "9519c2ce078aa7389bb1f28fd3fb45bf82194e611be8f9e1573e05ee08ab5532df76add8ec375bb4e60f874d334d22dd",
+    "v1Randomness": "f133df3762af34f28f001e6b3451262b470145ea8ca49c71dd6c7088655ee6a1"
+   },
+   {
+    "round": 32687230,
+    "signature": "b5ade56164d1b6e98d65d4c23a3e09971ae483e09773ea926028c3b119af9d1c459e35555e19db8cbc32a38c991e98d1",
+    "v1Randomness": "0a2301a45c521752fe3eff5767c24a7ae5f463a1ccd5e4804774e573c4fdf9f6"
+   },
+   {
+    "round": 32687231,
+    "signature": "b357e928a008cdc584fdee32c42a96af46e74b8a8192e17b906dc36cc8b30b5f46a3fd817524bdfdf8899d043c4c3a90",
+    "v1Randomness": "002309eb6aacaaa8c791a276e96a20c664a5522841f1db793908a0d3faa05e61"
+   },
+   {
+    "round": 32687232,
+    "signature": "92a4c01f8810564ed16b20443c6f1fd18aaf3ec43331f07ba0bd710e4c3a51c83b063614b48e482f70c82867c0f84fd8",
+    "v1Randomness": "179553c2104a96624fc8e2a6ca49aac78c772bcdf86f12ce670dcf5492d8ab09"
+   }
+  ]
+ }
+}
