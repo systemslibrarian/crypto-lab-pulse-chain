@@ -9,26 +9,14 @@ import type { Page } from '@playwright/test';
  * reach a `::before`/`::after` glyph, because a pseudo-element is not an
  * element and owns no text node.
  *
- * IN THIS LAB the control-boundary half is the live one. `src/style.css` has
- * the boundary token — `--control-border`, defined in both themes and applied
- * to `.mono-input`/`.msg-input` and, since the 1.4.11 pass that landed in
- * `9596c01`, to the base `.btn` — but tokens are discarded by overrides, and
- * that is what this oracle exists to measure rather than trust. Three shapes
- * on this page override or bypass it: `.btn-primary` repaints its border the
- * SAME colour as its own accent fill, so it has no edge of its own and lives
- * or dies by fill-vs-surround (which the gold accent does not clear on the
- * white light-theme surface); `.seg-btn` declares `border: none` and leans on
- * its `.seg` wrapper, whose border is the decorative `--border` divider; and
- * `.tab-btn.active` overrides to `--accent-ink`, the fix from that same
- * commit. This oracle judges each control as painted, at every driven state —
- * including the rejected-preset and `aria-invalid` recolourings only the
- * drive reaches.
- *
- * The generated-content half is inert in this repo today — the stylesheet
- * declares no `content` at all; the only generated marks are the `<summary>`
- * disclosure triangles, which are `::marker`, the UA's own. It runs anyway,
- * at every state, so that stays a measurement rather than a reading of the
- * stylesheet.
+ * IN THIS LAB both halves are live. Control boundaries: `src/styles.css`
+ * draws every select, quiet button and unpressed toggle with
+ * `--control-border`, and the primary and pressed buttons with an accent
+ * fill — but tokens are discarded by overrides, and the hover states repaint
+ * fills, which is what this oracle exists to measure rather than trust. It
+ * judges each control as painted at every driven state, hover included.
+ * Generated content: a pressed `.btn-toggle` paints a `::before` check mark,
+ * so that glyph is measured on the accent fill it sits on.
  *
  * TWO SEPARATE CHECKS LIVE HERE.
  *
@@ -370,13 +358,12 @@ export async function auditNonText(page: Page, within = 'body *'): Promise<NonTe
     /**
      * Style and geometry are memoised per element for one pass.
      *
-     * A driven pass here walks six tabpanels, and the expensive part is the
-     * BIP-340 vectors panel: nineteen `.kat-item` disclosures, each with a
-     * summary pill and, once opened, five hex fields and a hand-off button —
-     * all siblings re-walking the same ancestors up to `<body>`. Without the
-     * caches the pass re-reads the same computed styles and rects tens of
-     * thousands of times. Nothing mutates the DOM during the pass, so the
-     * cached values cannot go stale.
+     * A driven pass here walks all six acts at once, and the expensive part is
+     * the tables (byte map, chain, skiplist) — every cell a sibling
+     * re-walking the same ancestors up to `<body>`. Without the caches the
+     * pass re-reads the same computed styles and rects tens of thousands of
+     * times. Nothing mutates the DOM during the pass, so the cached values
+     * cannot go stale.
      */
     const styleCache = new Map<Element, CSSStyleDeclaration>();
 
@@ -501,19 +488,15 @@ export async function auditNonText(page: Page, within = 'body *'): Promise<NonTe
       // delineated by one side only — elsewhere in this fleet that reported
       // 1.12:1 for a selected tab whose entire boundary was a 3px
       // `border-bottom` underline, the ARIA tab pattern's normal delineator.
-      // This lab's tabs happen to paint all four sides today; the per-side
-      // walk is what keeps that an implementation detail rather than a
-      // load-bearing assumption.
+      // This lab's controls happen to paint all four sides today; the
+      // per-side walk is what keeps that an implementation detail rather
+      // than a load-bearing assumption.
       //
       // A side also has to be OPAQUE ENOUGH TO PAINT. `border: 1px solid
       // transparent` is a layout spacer, not a delineator — it reserves the
       // 1px a coloured state will later occupy so nothing shifts. This page
-      // uses exactly that on `.tab-btn`, whose ACTIVE state fills the border
-      // in with `--accent-ink`; counting the transparent spacer as a border
-      // would make the five unselected tabs — no fill, no painted edge,
-      // identified by their text alone, exactly the case the "is it trying to
-      // draw itself as a control?" test below exists to exclude — report
-      // 1.00:1 apiece.
+      // does not use that idiom today; the check stays so that adding it
+      // later cannot make an unpainted spacer read as a 1.00:1 boundary.
       const SIDES = ['top', 'right', 'bottom', 'left'] as const;
       const paintedSides = SIDES.filter((side) => {
         if (parseFloat(cs.getPropertyValue(`border-${side}-width`) || '0') <= 0) return false;

@@ -45,18 +45,16 @@ export const NARROW = { width: 380, height: 800 };
  *     control it touches, asserts a real completion signal after each, and
  *     scans after every step, in {dark, light} x {1280, 380}.
  *
- *  4. `violations` IS NOT THE WHOLE ORACLE. See `scan`. The surfaces that carry
- *     this lab's meaning — every `.verdict-*` tone, both `.pill` states, the
- *     `.callout-danger` / `.callout-caveat` warnings, the `.learner-check`
- *     tint and the shared top bar's `color-mix()` ink — are all `color-mix()`
- *     fills axe files under `incomplete` rather than judging. So is an
- *     `aria-label` on a role-less element.
+ *  4. `violations` IS NOT THE WHOLE ORACLE. See `scan`. axe files contrast it
+ *     cannot resolve (the shared top bar's `color-mix()` ink, for one) under
+ *     `incomplete` rather than judging it, and an `aria-label` on a role-less
+ *     element lands there too.
  *
  *  5. IT HAD NO REFLOW, NON-TEXT-CONTRAST OR GENERATED-CONTENT ORACLE. The old
  *     spec hand-rolled one luminance check over two input selectors, reading
  *     the DECLARED `border-top-color` and `background-color` — blind to
- *     `color-mix()`, to composited backdrops, to every `.btn`, `.seg-btn`,
- *     `.tab-btn` and preset control, and to all states past first paint.
+ *     `color-mix()`, to composited backdrops, to every button, select and
+ *     toggle, and to all states past first paint.
  *     `nontext.ts` replaces it with a measured oracle over every control at
  *     every driven state, and `expectNoHorizontalOverflow` adds the 1.4.10
  *     check axe has no rule for.
@@ -117,14 +115,11 @@ export async function settle(page: Page, budgetMs = 4000): Promise<void> {
  * visible state is an animation, in a stylesheet whose reduced-motion block
  * cancels that animation without restoring its end state — the element then
  * renders at `opacity: 0` for every reader with the preference set. This lab
- * has EXACTLY that shape in miniature: `@keyframes fade` and `@keyframes
- * reveal` both start `from { opacity: 0 }`, and every tab panel and every
- * stepper line rides one of them. The reduced-motion block cancels both with
- * `animation: none`, which restores the static `opacity: 1` — correct today,
- * and this assertion is what makes that a measurement rather than a reading.
+ * declares no animations at all; the assertion runs anyway so that adding one
+ * stays a measurement rather than a reading of the stylesheet.
  *
  * `aria-hidden` subtrees are excluded; what this lab hides is decorative
- * verdict/pill glyphs beside their own words — see `contrast.ts`.
+ * verdict and tag glyphs beside their own words — see `contrast.ts`.
  */
 async function expectNotBlank(page: Page, label: string): Promise<void> {
   const invisible = await page.evaluate(() => {
@@ -173,12 +168,11 @@ export function watchPageErrors(page: Page): string[] {
 /**
  * Exactly one banner landmark.
  *
- * The shared `.cl-topbar` carries an explicit `role="banner"`. This lab's own
- * hero is a `<div class="cl-hero">`, not a `<header>`, so nothing here implies
- * a second banner today — but the shared bar's `dedupeBanner()` exists because
- * other labs in this fleet DID ship one, and the hero markup is the part of
- * this page most likely to be re-templated from a lab that uses `<header>`.
- * Asserting the OUTCOME rather than the markup is what catches that edit.
+ * The shared `.cl-topbar` carries an explicit `role="banner"`. This lab's hero
+ * IS a `<header class="cl-hero">` directly inside `#app`, so it would imply a
+ * second banner; the bar's `dedupeBanner()` demotes it to `role="group"`.
+ * Asserting the OUTCOME rather than the markup is what catches the day that
+ * script stops running or the hero moves.
  */
 export async function assertSingleBanner(page: Page): Promise<void> {
   const banners = await page.evaluate(() => {
@@ -198,18 +192,14 @@ export async function assertSingleBanner(page: Page): Promise<void> {
 /**
  * List semantics survive their styling.
  *
- * This lab's one list is the Verify Workbench pipeline: `ol.stage-list` styled
- * `list-style: none`, which is exactly the declaration that makes Safari and
- * VoiceOver DROP the list's implicit role. `verifyWorkbench.ts` compensates
- * the documented way — an explicit `role="list"` on the `<ol>` and
- * `role="listitem"` on every `.stage` — so here, unlike most of this fleet, an
- * explicit role on a list is the fix rather than the defect. What is asserted
- * is therefore the SHAPE of that fix: any explicit role on a `ul`/`ol` must be
- * `list` (any other value orphans every `<li>` under it), and a `role="list"`
- * must never sit on an empty element, because axe applies
- * `aria-required-children` to the explicit role and fails it the day the
- * pipeline renders with no stages. Roles can be assigned as JS properties in
- * an element-creation helper, so ask the DOM rather than grepping the source.
+ * This lab's styled lists are the `ul.checks` verdict lists (Acts 4 and 6)
+ * and the scope list, all `list-style: none` — exactly the declaration that
+ * makes Safari and VoiceOver DROP a list's implicit role — so each carries an
+ * explicit `role="list"` with `role="listitem"` children. Asserted is the
+ * SHAPE of that fix: any explicit role on a `ul`/`ol` must be `list`, and a
+ * `role="list"` must never sit on an empty element, because axe applies
+ * `aria-required-children` to the explicit role. Ask the DOM rather than
+ * grepping the source: the roles are set by an element-creation helper.
  */
 export async function assertListSemantics(page: Page): Promise<void> {
   const broken = await page.$$eval('ul[role], ol[role]', (els) =>
@@ -549,16 +539,11 @@ export function expectBaselineNotStale(): void {
  *  - `incomplete` — axe's "could not decide" bucket, which never reaches the
  *    violations array. The one rule id allowed to remain incomplete is
  *    `color-contrast`, and only because the next assertion computes those
- *    ratios arithmetically — which matters here because the surfaces carrying
- *    this lab's meaning are `color-mix()` fills axe cannot resolve: every
- *    verdict tone, both pill states, the danger/caveat callouts, the
- *    learner-check tint, the hero aside and the shared bar's ink. Everything
- *    else in that bucket is a real result axe simply could not finish —
- *    including `aria-prohibited-attr`, which is where an `aria-label` on a
- *    role-less element hides. This page leans on getting that right: the
- *    `.seg`, `.radio-row`, `.preset-row` and learner-check option groups all
- *    pair their labels with `role="group"`. Drop any of those roles and the
- *    label is silently discarded.
+ * *    ratios arithmetically. Everything else in that bucket is a real result
+ *    axe could not finish — including `aria-prohibited-attr`, which is where
+ *    an `aria-label` on a role-less element hides. This page leans on getting
+ *    that right: the Act 6 signer row and every scroll region pair their
+ *    `aria-label` with `role="group"` / `role="region"`.
  *  - arithmetic contrast — composite-aware WCAG 1.4.3 over every text node.
  *  - the same walk over `aria-hidden` content with the exemption lifted —
  *    SC 1.4.3 is about what a reader SEES; see `contrast.ts` for what this

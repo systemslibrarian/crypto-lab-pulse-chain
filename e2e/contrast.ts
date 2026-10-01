@@ -7,26 +7,17 @@ import type { Page } from '@playwright/test';
  * text never reach the `violations` array a gate asserts on:
  *
  *  - TEXT OVER A SURFACE AXE DECLINES TO RESOLVE — a `color-mix()` over an
- *    unknown backdrop. Every surface that carries this lab's MEANING is one:
- *    the three verdict tones (`.verdict-pass` / `-fail` / `-alarm`) are
- *    `color-mix(in oklab, tone …%, var(--surface))`, and so are both `.pill`
- *    states, the `.callout-danger` / `.callout-caveat` warnings, the
- *    `.learner-check` tint and the hero aside's accent wash. Those fills hold
- *    every VALID/rejected verdict, the recovered-key alarm, the deliberately-
- *    broken-signer warning and both quick-check answers. The shared top bar
- *    adds a `color-mix(in srgb, ...)` for its ink. A violations-only gate
- *    therefore measured the contrast of almost none of this lab's verdicts.
+ *    unknown backdrop. In this lab that is the shared top bar's ink
+ *    (`color-mix(in srgb, var(--accent) 60%, #eafff8)`) and anything a later
+ *    edit tints that way. The lab's own verdict fills (`--ok-bg`,
+ *    `--alarm-bg`, `--warn-bg`) are plain hex today, but the walk measures
+ *    them rather than trusting that they stay so.
  *
  *  - TEXT FADED BY AN ANCESTOR'S `opacity` — axe reads the declared `color`,
- *    which is not the colour that lands on screen. Here that is
- *    `.stage-skipped` at `.8` — declared for the `'skipped'` pipeline status
- *    `verify()`'s type reserves but never currently emits (the pipeline stops
- *    at its first failure), so it is a dead rule the walk measures the day it
- *    renders; the drive asserts its absence so that day is loud — and
- *    `.btn:disabled` at `.5` (exempt as an inactive component, and skipped
- *    below for that reason). The hero subtitle declares `opacity: .85` and is
- *    then overridden back to `1` later in the same stylesheet; the walk
- *    measures whichever wins rather than trusting either declaration.
+ *    which is not the colour that lands on screen. This stylesheet uses no
+ *    opacity on text (muted text lowers lightness instead), and the disabled
+ *    Act 5 control is restyled rather than faded; the walk measures whatever
+ *    actually paints.
  *
  * So: walk every element that owns text, composite the real painted result
  * (translucent colours, gradient stops and opacity groups included), and
@@ -112,9 +103,9 @@ export interface ContrastFailure {
  * SEES, and `aria-hidden` changes only what a reader HEARS, so painted text
  * inside an `aria-hidden` subtree still has to clear its ratio — yet axe skips
  * it and, by default, so does this walk. What this page hides is its
- * verdict/stage/pill glyphs (✓ ✕ ⚠ ·), each painted in a semantic ink
- * (`--ok-text`, `--bad-text`, `--alarm-text`) on its own `color-mix()` tint —
- * the states this lab exists to show — so `scan()` calls this a second time as
+ * verdict and tag glyphs (✓ ✗ !), each painted in a semantic ink
+ * (`--ok-text`, `--alarm-text`, `--warn-text`) on its verdict fill — the
+ * states this lab exists to show — so `scan()` calls this a second time as
  * `auditContrast(page, '[aria-hidden="true"], [aria-hidden="true"] *', true)`.
  */
 export async function auditContrast(
@@ -414,14 +405,12 @@ export async function auditContrast(
     /**
      * Style and geometry are memoised per element for one pass.
      *
-     * A driven pass here walks a six-panel document, and the expensive part is
-     * the BIP-340 vectors panel: nineteen `.kat-item` disclosures, each
-     * holding five `.field` label/value pairs of 64-byte hex, plus the
-     * three-step trace and both-sides comparison the Sign panel renders on
-     * every signature — all of them siblings re-walking the same ancestors up
-     * to `<body>`. Without the caches the pass re-reads the same computed
-     * styles and rects tens of thousands of times. Nothing mutates the DOM
-     * during the pass, so the cached values cannot go stale.
+     * A driven pass here walks all six acts at once, and the expensive part is
+     * the tables: the 20-row byte map, the eight-row chain and the 33-row
+     * skiplist, every cell a sibling re-walking the same ancestors up to
+     * `<body>`. Without the caches the pass re-reads the same computed styles
+     * and rects tens of thousands of times. Nothing mutates the DOM during
+     * the pass, so the cached values cannot go stale.
      */
     const styleCache = new Map<Element, CSSStyleDeclaration>();
     const styleOf = (el: Element): CSSStyleDeclaration => {
@@ -534,13 +523,10 @@ export async function auditContrast(
       // A closed <details> hides its body with `content-visibility: hidden`,
       // not `display: none`, and Chromium keeps the last laid-out geometry for
       // that subtree — so the `display`/rect tests above all pass for text
-      // that paints nothing. `checkVisibility()` catches it. This page is full
-      // of the shape: the BIP-340 parity disclosure, both learner checks and
-      // all nineteen `.kat-item` vector rows are <details> that ship shut. The
-      // gate opens them by clicking their <summary>, which is the route a
-      // reader has, rather than setting `.open` from script — which is what
-      // the gate this replaces did, to every <details> on the page, before its
-      // only scan.
+      // that paints nothing. `checkVisibility()` catches it. Every act on this
+      // page ends in a `details.expert` disclosure that ships shut; the gate
+      // opens each by clicking its <summary>, the route a reader has, rather
+      // than setting `.open` from script.
       if ((el as HTMLElement).checkVisibility?.() === false) return false;
       const r = rectOf(el);
       if (r.width <= 0 || r.height <= 0) return false;
@@ -627,12 +613,11 @@ export async function auditContrast(
      * `[aria-hidden="true"]` call in `gate.ts`'s `scan()`.
      *
      * Every `aria-hidden` element on this page is an icon span rendered by the
-     * UI helpers: the `.verdict-icon` on each verdict, the `.stage-icon` on
-     * each pipeline stage, and the leading ✓ / ✕ / ⚠ glyph inside each
-     * `.pill` and each preset button — plus the shared header's two SVG marks,
-     * which carry no text. Each glyph duplicates the words directly beside it,
-     * but each is painted in a SEMANTIC ink (`--ok-text`, `--bad-text`,
-     * `--alarm-text`) on a `color-mix()` tint, which is why `scan()` runs the
+     * UI helpers: the `.verdict-icon` on each verdict, the leading glyph in
+     * each `.tag` and `.prop` cell, and the ✓/✗ before each hex comparison's
+     * summary — plus the shared header's two SVG marks, which carry no text.
+     * Each glyph duplicates the words directly beside it, but each is painted
+     * in a SEMANTIC ink on a verdict fill, which is why `scan()` runs the
      * whole `aria-hidden` set through this walk with the exemption lifted
      * rather than arguing any of them is merely decorative.
      *

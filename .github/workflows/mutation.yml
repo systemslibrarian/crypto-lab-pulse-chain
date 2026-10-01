@@ -1,0 +1,32 @@
+name: Mutation check
+
+# Runs scripts/mutate.mjs: every recorded mutation must be KILLED by its owning
+# test, under the four kill rules the script enforces (owner passed unmutated
+# in the same run, patch changed the file, the mutated bundle was served, the
+# mutant builds). Too slow (~10 min) to gate every Dependabot bump, so it runs
+# on changes to the code and tests it covers, and on demand.
+on:
+  pull_request:
+    branches: [main]
+    paths: ['src/**', 'e2e/**', 'scripts/mutate.mjs']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mutate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # NEVER --with-deps (see deploy.yml).
+      - run: npx playwright install chromium
+      - name: Every mutation must be killed
+        # Each observed record is printed to this log by the script itself.
+        run: npm run mutate

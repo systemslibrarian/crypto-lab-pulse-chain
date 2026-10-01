@@ -42,7 +42,7 @@ export function mountIntro(host: HTMLElement): void {
     el(
       'p',
       { class: 'muted' },
-      `Data: ${NIST.recent.length + NIST.preRotation.length + 1 + NIST.skiplist.pulses.length} real NIST pulses captured ${NIST.fetchedAt.slice(0, 10)}, and ${DRAND.default.genesisRounds.length + DRAND.default.recentRounds.length + DRAND.quicknet.rounds.length} real drand rounds captured ${DRAND.fetchedAt.slice(0, 10)}. The page makes no network requests.`,
+      `Data: ${new Set([...NIST.recent, ...NIST.preRotation, NIST.rotation, ...NIST.skiplist.pulses].map((p) => p.pulseIndex)).size} real NIST pulses captured ${NIST.fetchedAt.slice(0, 10)}, and ${DRAND.default.genesisRounds.length + DRAND.default.recentRounds.length + DRAND.quicknet.rounds.length} real drand rounds captured ${DRAND.fetchedAt.slice(0, 10)}. The page makes no network requests.`,
     ),
   )
   host.appendChild(sec)
