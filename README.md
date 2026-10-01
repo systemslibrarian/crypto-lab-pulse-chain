@@ -34,13 +34,15 @@ The draft-text reading reproduces **none** of the 56 pulses. `src/nist/nist.test
 
 ## Exhibits
 
+0. **Guided experiment (about 90 seconds).** The newcomer's route, above the acts: *Can a random number be cryptographically verified — and still not be fair?* Verify pulse 1925733 on five real checks, flip one bit and watch the three checks that cover it fail, restore it to reach the climax ("Verified — but NIST already knew the secret value. Nothing failed. That is the lesson."), then pick operators for a 3-of-5 threshold signer and see two different quorums print one signature while two operators print none. "Want to see what actually happened?" opens the shares, Lagrange coefficients and pairing check. It ends with four sentences: a signature proves who published; a hash chain proves history wasn't rewritten; neither proves the publisher didn't know first; a threshold changes who must be trusted without removing trust.
 1. **Recompute a NIST pulse.** A byte map of the nineteen serialized fields with offsets and length prefixes, and the published vs recomputed `outputValue` compared digit by digit. Break it two ways: switch to the draft's 8-byte prefixes, or flip one bit of `localRandomValue`.
 2. **Walk the chain, then rewrite history.** Eight consecutive signed pulses with four independent checks per row (self-hash, previous link, precommitment, RSA signature). Rewrite one pulse the way a forger without NIST's key would: change it and re-hash it. Three different checks catch it.
 3. **Skip from a month ago to now.** A 33-pulse skiplist (NISTIR 8213 Algorithm 6) from pulse 1925733 to 1965616, spanning 39,884 pulses, mostly by `day` links. Remove any pulse and the path breaks at exactly that hop.
 4. **Who vouches for the pulse?** Certificate ID, RSA signature (opened by hand to its `00 01 FF…FF 00 ‖ DigestInfo ‖ H` block), precommitment. Pulse 1925733 passes everything and is the negative-claim exhibit: **VERIFIED — AND KNOWN TO THE OPERATOR FIRST**. Post-rotation pulses show the signature/key size mismatch.
 5. **Verify a drand round.** The message bytes, hash-to-curve with the right DST, both sides of the pairing equation compared, randomness against the value drand's v1 API published, and chain continuity back to the genesis seed. Break it by claiming the next round or substituting a wrong previous signature.
 6. **Why a threshold makes the output unique.** A 3-of-5 BLS beacon. Choose which signers respond, combine partials by Lagrange interpolation in the exponent, and see every quorum produce the same signature while two signers produce nothing valid.
-7. **The four properties, side by side.** NIST vs drand. Cells that depend on a check are computed from that check, not written as prose.
+- **Live deployment finding.** A card beside Act 4 that recomputes the 2026-09-03 rotation finding from the newest pinned pulse: hash, link, precommitment and named certificate pass, and signature verification fails (4096-bit signature, 2048-bit modulus). It is worded narrowly: origin cannot be verified against the certificate the pulse names, which is not a claim that the beacon is compromised.
+7. **What you can and cannot check, side by side.** Tamper evidence plus the four properties, NIST vs drand, as the closing summary. Cells that depend on a check are computed from that check, and each links to the experiment that shows it.
 
 ## When to Use It
 
@@ -99,9 +101,9 @@ The Playwright preview runs on port **4677**. If your machine's pre-installed Ch
 |---|---|---|
 | Vitest (`npm test`) | **52 tests** | 56 real NIST pulses under both layouts, 2 certificates, RSA verify and recovery, hash chain, precommitment, skiplist; 13 real drand rounds by pairing and randomness; threshold toy; byte and DER helpers |
 | Spec KATs | 7 vectors | RFC 9380 Appendix J.9.1 hash-to-G1 (5), FIPS 180-4 SHA-512 and SHA-256 "abc" (2), in `src/fixtures/kat.json` |
-| Claims suite (`e2e/claims.spec.ts`) | **24 tests** | Headline values re-derived in Node by an independent route; every failure code reached through its control; retirement and a no-op guard; the §4.1d negative claim |
-| a11y gate (`e2e/a11y.spec.ts`) | 2 tests (1280px and 380px), 24 scanned states each | axe WCAG 2.1 A/AA (violations and incomplete), arithmetic text contrast, non-text contrast (empty baseline), reflow at 380px, keyboard-reachable scrollers, no invisible focus targets |
-| Mutation runner (`npm run mutate`) | **13 mutations, 13 killed** | Concrete patches with owning tests; a kill requires the owner to pass unmutated in the same run, the patch to apply, the bundle hash to move, and the mutant to build |
+| Claims suite (`e2e/claims.spec.ts`) | **30 tests** | Headline values re-derived in Node by an independent route; every failure code reached through its control; retirement and a no-op guard; the §4.1d negative claim |
+| a11y gate (`e2e/a11y.spec.ts`) | 2 tests (1280px and 380px), 31 scanned states each | axe WCAG 2.1 A/AA (violations and incomplete), arithmetic text contrast, non-text contrast (empty baseline), reflow at 380px, keyboard-reachable scrollers, no invisible focus targets |
+| Mutation runner (`npm run mutate`) | **16 mutations, 16 killed** | Concrete patches with owning tests; a kill requires the owner to pass unmutated in the same run, the patch to apply, the bundle hash to move, and the mutant to build |
 
 Fixtures: `src/fixtures/nist.json` (captured from `beacon.nist.gov` on 2026-10-01), `src/fixtures/drand.json` (captured from `api.drand.sh` on 2026-10-01, with each round's v1 `randomness`), `src/fixtures/kat.json`. Nothing in them is computed by the lab.
 
