@@ -57,6 +57,9 @@ export function randomnessOf(signature: string): string {
 export interface RoundCheck {
   ok: boolean
   message: string
+  /** The two GT elements the equation compares, serialized (576 bytes each). */
+  lhs: string
+  rhs: string
   randomness: string
   code?: DFailCode
   detail: string
@@ -70,6 +73,8 @@ export function verifyRound(
   previousSignature?: string,
 ): RoundCheck {
   let message = ''
+  let lhs = ''
+  let rhs = ''
   try {
     const m = roundMessage(scheme, round, previousSignature)
     message = toHex(m)
@@ -78,21 +83,29 @@ export function verifyRound(
       const pk = bls.G1.Point.fromHex(publicKey)
       const sig = bls.G2.Point.fromHex(signature)
       const hm = bls.G2.hashToCurve(m, { DST: DST_G2 })
-      ok = bls.fields.Fp12.eql(bls.pairing(pk, hm), bls.pairing(bls.G1.Point.BASE, sig))
+      const l = bls.pairing(pk, hm)
+      const r = bls.pairing(bls.G1.Point.BASE, sig)
+      ;[lhs, rhs] = [toHex(bls.fields.Fp12.toBytes(l)), toHex(bls.fields.Fp12.toBytes(r))]
+      ok = bls.fields.Fp12.eql(l, r)
     } else {
       const pk = bls.G2.Point.fromHex(publicKey)
       const sig = bls.G1.Point.fromHex(signature)
       const hm = bls.G1.hashToCurve(m, { DST: DST_G1 })
-      ok = bls.fields.Fp12.eql(bls.pairing(sig, bls.G2.Point.BASE), bls.pairing(hm, pk))
+      const l = bls.pairing(sig, bls.G2.Point.BASE)
+      const r = bls.pairing(hm, pk)
+      ;[lhs, rhs] = [toHex(bls.fields.Fp12.toBytes(l)), toHex(bls.fields.Fp12.toBytes(r))]
+      ok = bls.fields.Fp12.eql(l, r)
     }
     const randomness = randomnessOf(signature)
     return ok
-      ? { ok, message, randomness, detail: 'both sides of the pairing equation agree' }
-      : { ok, message, randomness, code: DFAIL.PAIRING_MISMATCH, detail: 'the two pairings differ: wrong round, wrong previous signature, or wrong key' }
+      ? { ok, message, lhs, rhs, randomness, detail: 'both sides of the pairing equation agree' }
+      : { ok, message, lhs, rhs, randomness, code: DFAIL.PAIRING_MISMATCH, detail: 'the two pairings differ: wrong round, wrong previous signature, or wrong key' }
   } catch (e) {
     return {
       ok: false,
       message,
+      lhs,
+      rhs,
       randomness: '',
       code: DFAIL.BAD_POINT,
       detail: `not a valid curve point: ${(e as Error).message}`,

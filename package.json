@@ -6,7 +6,7 @@
   "description": "Verify two deployed randomness beacons end to end: NIST Beacon 2.0 pulses (SHA-512 hash chain, skiplist, RSA signature, precommitment) and drand League of Entropy rounds (threshold BLS on BLS12-381).",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && tsc --noEmit -p tsconfig.e2e.json && vite build",
     "preview": "vite preview",
     "test": "vitest run",
     "test:a11y": "playwright test",

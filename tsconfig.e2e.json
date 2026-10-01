@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false,
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "e2e",
+    "playwright.config.ts",
+    "scripts/*.ts"
+  ]
+}
