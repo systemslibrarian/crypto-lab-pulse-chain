@@ -14,7 +14,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:4677/crypto-lab-pulse-chain/',
+    baseURL: 'http://localhost:4717/crypto-lab-pulse-chain/',
     colorScheme: 'dark',
     // Local-only escape hatch for a machine whose pre-installed Chromium is a
     // different build from the one this Playwright pins. CI never sets it and
@@ -26,8 +26,8 @@ export default defineConfig({
     // Without the build, a source change that fails to compile leaves the last
     // good bundle in place and the suite passes green against code that no
     // longer builds — which silently invalidates mutation checks.
-    command: 'npm run build && npm run preview -- --port 4677 --strictPort',
-    url: 'http://localhost:4677/crypto-lab-pulse-chain/',
+    command: 'npm run build && npm run preview -- --port 4717 --strictPort',
+    url: 'http://localhost:4717/crypto-lab-pulse-chain/',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },
