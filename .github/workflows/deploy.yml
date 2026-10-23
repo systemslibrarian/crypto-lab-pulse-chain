@@ -20,16 +20,43 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  # NOT a bare `pages`: with cancel-in-progress, a PR run would cancel a live
-  # main deploy.
+  # A PR run must not share a group with a live main deploy. Superseded PR runs
+  # can be cancelled; a main publication must be allowed to finish.
   group: pages-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        # Vitest 5 requires Node 22.12+ or 24+. Exercise both supported LTS
+        # lines instead of accepting an install with engine warnings.
+        node-version: [22.x, 24.x]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Unit tests and KATs against the pinned NIST and drand data
+        run: npm test
+
+      - name: Build (both typechecks gate the build)
+        run: npm run build
+
+      - name: Audit locked dependencies (fail on high+)
+        run: npm audit --audit-level=high
+
   build:
     runs-on: ubuntu-latest
     # The whole gate runs in about three minutes; GitHub's default ceiling is
@@ -37,17 +64,15 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
-      - run: npm ci
 
-      # The WHOLE suite gates the deploy, not just the a11y half. A 2026-08-14
-      # sweep found 29 repos running `test:a11y` alone, so their cryptographic
-      # suites never blocked a publish.
-      - name: Unit tests and KATs against the pinned NIST and drand data (Vitest)
-        run: npm test
+      - run: npm ci
 
       - name: Build (both typechecks gate the build)
         run: npm run build
@@ -61,13 +86,25 @@ jobs:
       - name: Accessibility gate and claims suite (Playwright)
         run: npm run test:a11y
 
-      - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
+        if: github.event_name != 'pull_request'
         with:
           path: dist
 
+  configure-pages:
+    if: github.event_name != 'pull_request'
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      # This privileged job never checks out or executes repository code.
+      - uses: actions/configure-pages@v6
+
   deploy:
-    needs: build
+    needs: configure-pages
     # NOT `== 'push'`. That would also skip workflow_dispatch, which is the one
     # trigger the post-auto-merge deploy depends on: the dispatched run would
     # build, pass the gate, and skip this job, so the site would still never
@@ -78,16 +115,36 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
 
-  # Dependabot only. `needs: build` is the whole safety argument -- a bump can
-  # merge itself only once this lab's entire PR gate went green, so the gate
-  # decides rather than the version number. A major that actually breaks the
-  # lab fails the gate and the PR stays open for a human.
+  verify-deploy:
+    if: github.event_name != 'pull_request'
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Verify the published route
+        env:
+          PAGES_URL: ${{ needs.deploy.outputs.page_url }}
+        run: |
+          curl --fail --show-error --silent --location \
+            --retry 10 --retry-delay 5 --retry-all-errors --max-time 15 \
+            "$PAGES_URL" --output "$RUNNER_TEMP/pulse-chain.html"
+          grep -F '<title>Pulse Chain — crypto-lab</title>' \
+            "$RUNNER_TEMP/pulse-chain.html"
+
+  # Dependabot only. Both deterministic tests and the full browser gate must
+  # pass before a non-major bump can merge. Major updates stay open for human
+  # review even when their checks are green.
   dependabot-auto-merge:
-    needs: build
+    needs: [test, build]
     if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -103,7 +160,12 @@ jobs:
       - id: meta
         uses: dependabot/fetch-metadata@v3
 
-      - name: Merge any bump whose gate went green
+      - name: Leave major updates for human review
+        if: endsWith(steps.meta.outputs.update-type, 'semver-major')
+        run: echo "Major update detected; automatic merge is intentionally disabled."
+
+      - name: Merge a non-major bump whose gate went green
+        if: ${{ !endsWith(steps.meta.outputs.update-type, 'semver-major') }}
         # Retry: a sibling PR merging first moves main underneath us and GitHub
         # rejects with "Base branch was modified". That is benign, so try again
         # rather than failing the run over a race.
@@ -118,9 +180,8 @@ jobs:
             sleep 15
           done
           if [ -z "$merged" ]; then
-            echo "::warning::gate passed but the merge did not land after 3 attempts;"
-            echo "::warning::leaving this PR open - Dependabot will rebase and retry."
-            exit 0
+            echo "::error::gate passed but the merge did not land after 3 attempts"
+            exit 1
           fi
           # A merge made with GITHUB_TOKEN raises no push event -- GitHub suppresses
           # them so workflows cannot retrigger themselves -- so deploy would never run

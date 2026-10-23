@@ -3,7 +3,7 @@ import { defineConfig } from '@playwright/test'
 /**
  * E2E gate: the a11y scan (a11y.spec.ts) and the claims suite (claims.spec.ts).
  * Both run against the production build served by `vite preview`, so what
- * passes here is what ships to Pages. Port 4677 is this lab's entry in the
+ * passes here is what ships to Pages. Port 4717 is this lab's entry in the
  * fleet registry (crypto-lab/tools/playwright-ports.json), so a stray
  * `reuseExistingServer` never scans a different lab's preview.
  */

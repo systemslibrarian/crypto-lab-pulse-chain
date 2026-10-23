@@ -86,7 +86,7 @@ npm run mutate       # mutation runner (slow; ~10 min)
 node scripts/live-check.mjs       # ask the live beacons whether the pinned facts still hold
 ```
 
-The Playwright preview runs on port **4677**. If your machine's pre-installed Chromium differs from the pinned Playwright build, set `PW_CHROMIUM=/path/to/chrome`; CI never sets it.
+The Playwright preview runs on port **4717**. If your machine's pre-installed Chromium differs from the pinned Playwright build, set `PW_CHROMIUM=/path/to/chrome`; CI never sets it.
 
 ## Related Demos
 
@@ -109,7 +109,7 @@ Fixtures: `src/fixtures/nist.json` (captured from `beacon.nist.gov` on 2026-10-0
 
 The e2e directory has its own `tsconfig.e2e.json`. The gate files are copied from `crypto-lab-schnorr-forge`, which is written without `noUncheckedIndexedAccess`, and the lab's own source keeps that stricter setting. `npm run build` typechecks both.
 
-CI (`.github/workflows/`): `deploy.yml` runs unit tests, build, then every Playwright spec before deploying, and gates and auto-merges grouped Dependabot bumps. `mutation.yml` runs the mutation runner on changes to `src/`, `e2e/` or the runner itself. `live-check.yml` runs the drift check weekly.
+CI (`.github/workflows/`): `deploy.yml` runs unit tests and builds on supported Node 22/24, then every Playwright spec before deploying, and gates and auto-merges non-major grouped Dependabot bumps. Major bumps stay open for human review. `mutation.yml` runs the mutation runner on changes to `src/`, `e2e/` or the runner itself. `live-check.yml` runs the drift check weekly.
 
 ## Performance
 
