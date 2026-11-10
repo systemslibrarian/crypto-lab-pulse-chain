@@ -141,11 +141,31 @@ const MUTATIONS = [
   },
   {
     id: 'M15',
-    what: 'finding card reports the signature as passing regardless',
+    what: 'finding card reports the 2026-10-01 signature as passing regardless',
     file: 'src/ui/finding.ts',
-    anchor: "row('Signature verification', 'f-sig', sig.ok, sig.code)",
-    replace: "row('Signature verification', 'f-sig', true, sig.code)",
-    owner: { kind: 'e2e', grep: 'every row but the signature passes' },
+    anchor: "tag(`f-${name}`, then.checks[key].ok, 'passes', 'fails', then.checks[key].code)",
+    replace: "tag(`f-${name}`, true, 'passes', 'fails', then.checks[key].code)",
+    owner: { kind: 'e2e', grep: 'the 2026-10-01 column still shows the mismatch' },
+  },
+  {
+    id: 'M17',
+    what: 'finding card reports the 2026-11-10 signature as failing regardless',
+    file: 'src/ui/finding.ts',
+    anchor: "tag(`f-${name}-now`, now.checks[key].ok, 'passes', 'fails', now.checks[key].code)",
+    replace: "tag(`f-${name}-now`, false, 'passes', 'fails', now.checks[key].code)",
+    owner: { kind: 'e2e', grep: 'the 2026-11-10 column shows the repair' },
+  },
+  {
+    id: 'M18',
+    what: 'the verifiability cell decides its level from the historical capture',
+    file: 'src/ui/properties.ts',
+    /* Swapping the CONDITION rather than the call keeps both results
+       referenced, so the mutant still type-checks: replacing the call left
+       nowPulse and certForCurrent unused and tsc rejected the build, which is
+       a mutant that proves nothing. */
+    anchor: '      sigNow.ok\n        ? cell(',
+    replace: '      sig.ok\n        ? cell(',
+    owner: { kind: 'e2e', grep: 'reflects both Act 4 signature results' },
   },
   {
     id: 'M16',
