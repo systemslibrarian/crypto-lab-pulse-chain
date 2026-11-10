@@ -27,6 +27,7 @@ import { createHash, verify as nodeVerify, X509Certificate } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 
 const NIST = JSON.parse(readFileSync(new URL('../src/fixtures/nist.json', import.meta.url), 'utf8'))
+const NIST_CURRENT = JSON.parse(readFileSync(new URL('../src/fixtures/nist-current.json', import.meta.url), 'utf8'))
 const DRAND = JSON.parse(readFileSync(new URL('../src/fixtures/drand.json', import.meta.url), 'utf8'))
 
 /**
@@ -255,6 +256,21 @@ test.describe('Act 4 — the negative claim (§4.1d)', () => {
     await expect(verdictOf(page, 'a4-sig')).toContainText('2048-bit key')
   })
 
+  test('the current pulse: the same four checks, and origin now verifies', async ({ page }) => {
+    await page.locator('label[for="a4-pulse-current"]').click()
+    for (const c of ['a4-output', 'a4-certid', 'a4-sig', 'a4-precommit']) {
+      await expect(verdictOf(page, c)).toHaveAttribute('data-verdict', 'pass')
+    }
+    await expect(verdictOf(page, 'a4-headline')).toContainText('VERIFIED — AND KNOWN TO THE OPERATOR FIRST')
+    // The negative claim is not repaired by a bigger key: it is still on screen.
+    await expect(page.locator('[data-fixture="operator-knows"] [data-claim="negative-claim"]')).toBeVisible()
+    // Independently: this pulse's signature opens under the certificate it names.
+    const p = NIST_CURRENT.recent.at(-1)
+    const cert = new X509Certificate(NIST_CURRENT.certificates[p.certificateId])
+    expect(nodeVerify('sha512', signedBytes(p), cert.publicKey, Buffer.from(p.signatureValue, 'hex'))).toBe(true)
+    await expect(verdictOf(page, 'a4-sig')).toContainText('4096-bit')
+  })
+
   test('the rotation pulse names both status flags', async ({ page }) => {
     await page.locator('label[for="a4-pulse-rotation"]').click()
     await expect(page.locator('#act4 .meta')).toContainText('statusCode 6')
@@ -345,12 +361,17 @@ test.describe('Act 6 — threshold uniqueness', () => {
 })
 
 test.describe('The four properties', () => {
-  test('the NIST verifiability cell reflects the Act 4 signature result, not prose', async ({ page }) => {
+  test('the NIST verifiability cell reflects both Act 4 signature results, not prose', async ({ page }) => {
     const cell = page.locator('td[data-property="verifiability"][data-beacon="nist"]')
-    await expect(cell).toHaveAttribute('data-level', 'partial')
+    // It holds now, and the level comes from the check on the current capture.
+    await expect(cell).toHaveAttribute('data-level', 'holds')
+    await expect(cell).toContainText(`as of ${NIST_CURRENT.fetchedAt.slice(0, 10)}`)
+    await expect(cell).toContainText(`#${NIST_CURRENT.recent.at(-1).pulseIndex}`)
+    // And it still carries the older state's failure detail, verbatim from Act 4.
     await page.locator('label[for="a4-pulse-latest"]').click()
     const sigText = (await verdictOf(page, 'a4-sig').locator('.verdict-detail').textContent())!.trim().replace(/\.$/, '')
     await expect(cell).toContainText(sigText)
+    await expect(cell).toContainText(`did not on ${NIST.fetchedAt.slice(0, 10)}`)
   })
 
   test('the NIST liveness cell’s gap equals the fixture timestamps', async ({ page }) => {
@@ -450,22 +471,48 @@ test.describe('Guided experiment', () => {
   })
 })
 
-test.describe('Live deployment finding', () => {
-  test('every row but the signature passes, and the wording stays narrow', async ({ page }) => {
+test.describe('Deployment finding and its resolution', () => {
+  test('the 2026-10-01 column still shows the mismatch and the wording stays narrow', async ({ page }) => {
     const card = page.locator('[data-claim="live-finding"]')
     for (const c of ['f-output', 'f-link', 'f-precommit', 'f-certid']) {
       await expect(card.locator(`[data-check="${c}"]`)).toHaveAttribute('data-verdict', 'pass')
     }
     await expect(card.locator('[data-check="f-sig"]')).toHaveAttribute('data-code', 'SIG_SIZE_MISMATCH')
     await expect(card).toContainText(`Observed: ${NIST.rotation.timeStamp.slice(0, 10)}`)
-    await expect(card).toContainText(`Rechecked: ${NIST.fetchedAt.slice(0, 10)}`)
+    await expect(card).toContainText(`Filed: ${NIST.fetchedAt.slice(0, 10)}`)
     const p = NIST.recent.at(-1)
     const cert = new X509Certificate(NIST.certificates[p.certificateId])
-    await expect(card).toContainText(`signature is ${Buffer.from(p.signatureValue, 'hex').length * 8} bits`)
-    await expect(card).toContainText(`${cert.publicKey.asymmetricKeyDetails?.modulusLength} bits`)
-    const claim = card.locator('[data-claim="finding-claim"]')
-    await expect(claim).toContainText('Origin cannot be verified against the certificate the pulse names')
-    await expect(claim).toContainText('not a claim that the beacon is compromised')
+    // Independently: a 4096-bit signature under a 2048-bit modulus, as the column says.
+    await expect(card).toContainText(`the signature was ${Buffer.from(p.signatureValue, 'hex').length * 8} bits`)
+    await expect(card).toContainText(`named was ${cert.publicKey.asymmetricKeyDetails?.modulusLength} bits`)
+  })
+
+  test('the 2026-11-10 column shows the repair, re-derived here', async ({ page }) => {
+    const card = page.locator('[data-claim="live-finding"]')
+    // Every check, including the signature, passes in the current capture.
+    for (const c of ['f-output', 'f-link', 'f-precommit', 'f-certid', 'f-sig']) {
+      await expect(card.locator(`[data-check="${c}-now"]`)).toHaveAttribute('data-verdict', 'pass')
+    }
+    // Independently, by a different route: 4096-bit signature, 4096-bit key, and it opens.
+    const p = NIST_CURRENT.recent.at(-1)
+    const cert = new X509Certificate(NIST_CURRENT.certificates[p.certificateId])
+    expect(createHash('sha512').update(cert.raw).digest('hex')).toBe(p.certificateId)
+    expect(Buffer.from(p.signatureValue, 'hex').length * 8).toBe(4096)
+    expect(cert.publicKey.asymmetricKeyDetails?.modulusLength).toBe(4096)
+    expect(nodeVerify('sha512', signedBytes(p), cert.publicKey, Buffer.from(p.signatureValue, 'hex'))).toBe(true)
+    // The resolution is dated by the certificate's own notBefore, not by prose.
+    await expect(card).toContainText(`valid from ${new Date(cert.validFrom).toISOString().slice(0, 10)}`)
+    await expect(card).toContainText(`confirmed ${NIST_CURRENT.fetchedAt.slice(0, 10)} on pulse #${p.pulseIndex}`)
+  })
+
+  test('the claim states both dated states and overclaims neither', async ({ page }) => {
+    const claim = page.locator('[data-claim="finding-claim"]')
+    await expect(claim).toContainText('Origin verifies today against the certificate the pulse names')
+    await expect(claim).toContainText(`between the ${NIST.rotation.timeStamp.slice(0, 10)} rotation`)
+    await expect(claim).toContainText('it could not')
+    await expect(claim).toContainText('neither was, or is, a claim that the beacon was compromised')
+    // The part that survives the repair: the hash checks never caught it.
+    await expect(claim).toContainText('all four hash-based checks passed in both columns')
   })
 
   test('the tamper row closes the comparison with both beacons holding', async ({ page }) => {
