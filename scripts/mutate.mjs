@@ -222,17 +222,35 @@ function build() {
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const INFRA = /was not able to start|is already used|ECONNREFUSED|Executable doesn't exist/
 
+/* Vitest COLOURS its summary when CI is set, so the bytes are
+ * "Tests ESC[22m ESC[1mESC[32m1 passed", not "Tests  1 passed". The `ran` regex
+ * below needs digits right after the word and the escape sequences sit in
+ * between -- so in CI a PASSING run was read as "did not run" and refused the
+ * baseline. Measured there: exit status 0, signal none, stderr empty, stdout
+ * 538 bytes reading "Tests 1 passed | 22 skipped", and ran=false.
+ *
+ * The playwright owners never showed it because their pattern is looser and the
+ * literal "1 passed" survives the escapes.
+ *
+ * `ran` is NOT relaxed to fix this. It is the guard that catches a -t filter
+ * matching nothing, which is how a renamed test becomes a mutant that only
+ * looks killed. The bytes are normalised instead. */
+const ANSI = new RegExp(String.fromCharCode(27) + '\\[[0-9;]*m', 'g')
+const plain = (s) => String(s ?? '').replace(ANSI, '')
+
 function runOwner(owner) {
   if (owner.kind === 'vitest') {
     const cmd = `npx vitest run ${owner.file} -t "${owner.name}"`
     const r = sh(cmd)
-    const ran = /Tests\s+\d+ (passed|failed)/.test(r.out) && !/no tests/i.test(r.out)
+    const clean = plain(r.out)
+    const ran = /Tests\s+\d+ (passed|failed)/.test(clean) && !/no tests/i.test(clean)
     return { passed: r.ok, ran, infra: false, out: r.out, cmd, ...r }
   }
   const cmd = `npx playwright test e2e/claims.spec.ts --retries=0 -g "${escape(owner.grep)}"`
   const r = sh(cmd)
-  const ran = /\d+ (passed|failed)/.test(r.out)
-  return { passed: r.ok, ran, infra: INFRA.test(r.out), out: r.out, cmd, ...r }
+  const clean = plain(r.out)
+  const ran = /\d+ (passed|failed)/.test(clean)
+  return { passed: r.ok, ran, infra: INFRA.test(clean), out: r.out, cmd, ...r }
 }
 
 mkdirSync('.mutation', { recursive: true })
