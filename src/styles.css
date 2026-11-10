@@ -774,7 +774,7 @@ details.expert > summary {
   font-weight: 600;
 }
 
-/* ── Live deployment finding ─────────────────────────────────────────── */
+/* ── Deployment finding, and its resolution ─────────────────────────────────────────── */
 .finding {
   border: 2px dashed var(--alarm-text);
   border-radius: 12px;
@@ -791,10 +791,39 @@ details.expert > summary {
   color: var(--alarm-text);
 }
 
+/* Two dated columns. The table must stay inside the card at 380px: the page
+   itself must never scroll sideways (e2e/gate.ts expectNoHorizontalOverflow). */
+.finding-table {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+}
+
 .finding-table th,
 .finding-table td {
   padding: 0.25rem 1.2rem 0.25rem 0;
   text-align: left;
+}
+
+.finding-table tr > :last-child {
+  padding-right: 0;
+}
+
+.finding-table thead th {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+@media (max-width: 480px) {
+  .finding-table th,
+  .finding-table td {
+    padding-right: 0.45rem;
+    font-size: 0.85rem;
+  }
+
+  .finding-table thead th {
+    font-size: 0.75rem;
+  }
 }
 
 .finding-claim {

@@ -26,7 +26,7 @@ export function mountIntro(host: HTMLElement): void {
           ['act1', 'Recompute a NIST pulse'],
           ['act2', 'Walk the chain, then rewrite history'],
           ['act3', 'Skip from a month ago to now'],
-          ['finding', 'Live deployment finding'],
+          ['finding', 'Deployment finding, and its resolution'],
           ['act4', 'Who vouches for the pulse?'],
           ['act5', 'Verify a drand round'],
           ['act6', 'Why a threshold makes the output unique'],

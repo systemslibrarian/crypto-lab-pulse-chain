@@ -141,11 +141,31 @@ const MUTATIONS = [
   },
   {
     id: 'M15',
-    what: 'finding card reports the signature as passing regardless',
+    what: 'finding card reports the 2026-10-01 signature as passing regardless',
     file: 'src/ui/finding.ts',
-    anchor: "row('Signature verification', 'f-sig', sig.ok, sig.code)",
-    replace: "row('Signature verification', 'f-sig', true, sig.code)",
-    owner: { kind: 'e2e', grep: 'every row but the signature passes' },
+    anchor: "tag(`f-${name}`, then.checks[key].ok, 'passes', 'fails', then.checks[key].code)",
+    replace: "tag(`f-${name}`, true, 'passes', 'fails', then.checks[key].code)",
+    owner: { kind: 'e2e', grep: 'the 2026-10-01 column still shows the mismatch' },
+  },
+  {
+    id: 'M17',
+    what: 'finding card reports the 2026-11-10 signature as failing regardless',
+    file: 'src/ui/finding.ts',
+    anchor: "tag(`f-${name}-now`, now.checks[key].ok, 'passes', 'fails', now.checks[key].code)",
+    replace: "tag(`f-${name}-now`, false, 'passes', 'fails', now.checks[key].code)",
+    owner: { kind: 'e2e', grep: 'the 2026-11-10 column shows the repair' },
+  },
+  {
+    id: 'M18',
+    what: 'the verifiability cell decides its level from the historical capture',
+    file: 'src/ui/properties.ts',
+    /* Swapping the CONDITION rather than the call keeps both results
+       referenced, so the mutant still type-checks: replacing the call left
+       nowPulse and certForCurrent unused and tsc rejected the build, which is
+       a mutant that proves nothing. */
+    anchor: '      sigNow.ok\n        ? cell(',
+    replace: '      sig.ok\n        ? cell(',
+    owner: { kind: 'e2e', grep: 'reflects both Act 4 signature results' },
   },
   {
     id: 'M16',
@@ -161,9 +181,29 @@ const only = process.argv.slice(2)
 const selected = only.length ? MUTATIONS.filter((m) => only.includes(m.id)) : MUTATIONS
 const env = { ...process.env, CI: '1' }
 
+/* `ok` is the EXIT STATUS, and the status is kept alongside the output because
+ * the two can disagree. In CI the baseline for M13's owner was recorded FAIL
+ * while vitest's own captured output in the same block read
+ * `Test Files 1 passed` / `Tests 1 passed | 22 skipped`, and the same command
+ * exits 0 locally with and without CI=1. A verdict taken from a number nobody
+ * printed cannot be diagnosed, so the number is printed.
+ *
+ * status is null when the child was killed by a signal or never ran, which is a
+ * different fact from a non-zero exit and must not be folded into it. stdout and
+ * stderr are kept apart too: `out` concatenates them for display, so a failure
+ * whose only evidence is on stderr was previously indistinguishable from one
+ * with none. */
 function sh(cmd) {
   const r = spawnSync(cmd, { shell: true, env, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
-  return { ok: r.status === 0, out: (r.stdout ?? '') + (r.stderr ?? '') }
+  return {
+    ok: r.status === 0,
+    out: (r.stdout ?? '') + (r.stderr ?? ''),
+    status: r.status,
+    signal: r.signal,
+    error: r.error ? `${r.error.code ?? ''} ${r.error.message}`.trim() : null,
+    stdout: r.stdout ?? '',
+    stderr: r.stderr ?? '',
+  }
 }
 
 function bundleHash() {
@@ -182,15 +222,35 @@ function build() {
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const INFRA = /was not able to start|is already used|ECONNREFUSED|Executable doesn't exist/
 
+/* Vitest COLOURS its summary when CI is set, so the bytes are
+ * "Tests ESC[22m ESC[1mESC[32m1 passed", not "Tests  1 passed". The `ran` regex
+ * below needs digits right after the word and the escape sequences sit in
+ * between -- so in CI a PASSING run was read as "did not run" and refused the
+ * baseline. Measured there: exit status 0, signal none, stderr empty, stdout
+ * 538 bytes reading "Tests 1 passed | 22 skipped", and ran=false.
+ *
+ * The playwright owners never showed it because their pattern is looser and the
+ * literal "1 passed" survives the escapes.
+ *
+ * `ran` is NOT relaxed to fix this. It is the guard that catches a -t filter
+ * matching nothing, which is how a renamed test becomes a mutant that only
+ * looks killed. The bytes are normalised instead. */
+const ANSI = new RegExp(String.fromCharCode(27) + '\\[[0-9;]*m', 'g')
+const plain = (s) => String(s ?? '').replace(ANSI, '')
+
 function runOwner(owner) {
   if (owner.kind === 'vitest') {
-    const r = sh(`npx vitest run ${owner.file} -t "${owner.name}"`)
-    const ran = /Tests\s+\d+ (passed|failed)/.test(r.out) && !/no tests/i.test(r.out)
-    return { passed: r.ok, ran, infra: false, out: r.out }
+    const cmd = `npx vitest run ${owner.file} -t "${owner.name}"`
+    const r = sh(cmd)
+    const clean = plain(r.out)
+    const ran = /Tests\s+\d+ (passed|failed)/.test(clean) && !/no tests/i.test(clean)
+    return { passed: r.ok, ran, infra: false, out: r.out, cmd, ...r }
   }
-  const r = sh(`npx playwright test e2e/claims.spec.ts --retries=0 -g "${escape(owner.grep)}"`)
-  const ran = /\d+ (passed|failed)/.test(r.out)
-  return { passed: r.ok, ran, infra: INFRA.test(r.out), out: r.out }
+  const cmd = `npx playwright test e2e/claims.spec.ts --retries=0 -g "${escape(owner.grep)}"`
+  const r = sh(cmd)
+  const clean = plain(r.out)
+  const ran = /\d+ (passed|failed)/.test(clean)
+  return { passed: r.ok, ran, infra: INFRA.test(clean), out: r.out, cmd, ...r }
 }
 
 mkdirSync('.mutation', { recursive: true })
@@ -211,7 +271,21 @@ for (const m of selected) {
   const r = runOwner(m.owner)
   ownersPassed.set(key, r.passed && r.ran)
   console.log(`baseline ${r.passed && r.ran ? 'PASS' : 'FAIL'}  ${m.owner.grep ?? m.owner.name}`)
-  if (!(r.passed && r.ran)) console.log(r.out.slice(-1500))
+  if (!(r.passed && r.ran)) {
+    /* Say WHY it was called a failure before showing the output, so a run whose
+       output looks green is not left as a contradiction a reader has to guess
+       at. `ran` and `passed` are separate verdicts and both are printed. */
+    console.log(`  [${m.id}] verdict: passed=${r.passed} ran=${r.ran}`)
+    console.log(`  [${m.id}] exit status: ${r.status === null ? 'null (killed or never ran)' : r.status}`)
+    console.log(`  [${m.id}] signal: ${r.signal ?? 'none'}`)
+    console.log(`  [${m.id}] spawn error: ${r.error ?? 'none'}`)
+    console.log(`  [${m.id}] command: ${r.cmd}`)
+    console.log(`  [${m.id}] stdout bytes: ${r.stdout.length}  stderr bytes: ${r.stderr.length}`)
+    console.log(`  [${m.id}] ---- stderr, in full ----`)
+    console.log(r.stderr.length ? r.stderr : '  (stderr was empty)')
+    console.log(`  [${m.id}] ---- stdout, last 1500 ----`)
+    console.log(r.stdout.slice(-1500))
+  }
 }
 
 // ── Phase 2: one mutation at a time, restored immediately. ─────────────────

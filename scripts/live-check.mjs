@@ -1,28 +1,36 @@
 #!/usr/bin/env node
 /**
  * Live drift check. The page states dated facts about two beacons in service,
- * from fixtures pinned on 2026-10-01. This script asks the live services
- * whether those facts still hold, using an implementation independent of
- * src/ (Buffer serializer, node:crypto, a direct noble pairing):
+ * from two pinned captures: src/fixtures/nist.json (2026-10-01, when NIST's
+ * signature could not be verified against the certificate its pulses named)
+ * and src/fixtures/nist-current.json (2026-11-10, after a replacement
+ * certificate with a 4096-bit key restored that). This script asks the live
+ * services whether the page's present-tense claims still hold, using an
+ * implementation independent of src/ (Buffer serializer, node:crypto, a
+ * direct noble pairing):
  *
  *   NIST  1. the newest pulse still reproduces under the deployed layout
  *            (4-byte prefixes) and still does NOT under the draft text's;
  *         2. certificateId is still SHA-512 over the certificate DER;
- *         3. whether the newest pulse's signature can be verified against the
- *            certificate it names — the page says it cannot (4096-bit
- *            signature, 2048-bit key). If NIST fixes that, Act 4 and the
+ *         3. whether the newest pulse's signature verifies against the
+ *            certificate it names — the page now says it does. If that stops
+ *            being true, Act 4's "after the repair" state and the
  *            four-property table are stale and this check fails on purpose.
  *   drand 4. the newest default and quicknet rounds verify by pairing under
  *            the pinned group keys, and SHA-256(signature) matches v1.
  *
- * It never rewrites fixtures. A failure means a human should look, refresh
- * src/fixtures/, and update the prose that depends on them.
+ * It never rewrites fixtures. A failure means a human should look. Note which
+ * direction a failure on (3) points now: the 2026-10-01 capture is history and
+ * stays whatever happens, so a regression means adding the new state alongside
+ * it, never editing the old one away.
  */
 import { bls12_381 as bls } from '@noble/curves/bls12-381.js'
 import { createHash, verify, X509Certificate } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 
 const PINNED = JSON.parse(readFileSync(new URL('../src/fixtures/drand.json', import.meta.url), 'utf8'))
+const CURRENT = JSON.parse(readFileSync(new URL('../src/fixtures/nist-current.json', import.meta.url), 'utf8'))
+const CAPTURED_CURRENT = CURRENT.fetchedAt.slice(0, 10)
 const problems = []
 const note = (ok, msg) => {
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${msg}`)
@@ -70,7 +78,10 @@ try {
   const keyBits = cert.publicKey.asymmetricKeyDetails?.modulusLength
   const verifies = sig.length * 8 === keyBits && verify('sha512', z4, cert.publicKey, sig)
   console.log(`     signature ${sig.length * 8} bits, certificate key ${keyBits} bits, verifies: ${verifies}`)
-  note(!verifies, 'NIST newest signature still cannot be verified against its named certificate, as Act 4 states (if this FAILS, NIST fixed it: refresh the fixtures and Act 4)')
+  note(
+    verifies,
+    `NIST newest signature verifies against its named certificate, as Act 4 states for ${CAPTURED_CURRENT} (if this FAILS, the repair has regressed: capture the new state alongside the pinned ones and add it to Act 4 and the property table — do not edit the 2026-10-01 history away)`,
+  )
 } catch (e) {
   note(false, `NIST fetch: ${e.message}`)
 }

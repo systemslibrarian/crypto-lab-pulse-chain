@@ -4,7 +4,7 @@
  * pinned data rather than written as prose, so the table cannot drift from
  * what the acts show.
  */
-import { NIST, certFor } from '../nist/fixtures'
+import { CAPTURED, NIST, NIST_CURRENT, certFor, certForCurrent } from '../nist/fixtures'
 import type { Pulse } from '../nist/types'
 import { checkSignature } from '../nist/verify'
 import { DRAND } from '../drand/fixtures'
@@ -22,7 +22,7 @@ function cell(prop: string, beacon: string, level: Level, text: string, act: str
     { 'data-property': prop, 'data-beacon': beacon, 'data-level': level },
     el('span', { class: `prop prop-${level}` }, el('span', { 'aria-hidden': 'true', text: `${ICON[level]} ` }), WORD[level]),
     el('span', { class: 'prop-text', text: ` ${text}` }),
-    el('a', { href: `#${act}`, class: 'prop-act', text: `Show me why (${act === 'finding' ? 'live finding' : act.replace('act', 'Act ')})` }),
+    el('a', { href: `#${act}`, class: 'prop-act', text: `Show me why (${act === 'finding' ? 'the finding and its resolution' : act.replace('act', 'Act ')})` }),
   )
 }
 
@@ -34,6 +34,10 @@ export async function mountProperties(host: HTMLElement): Promise<void> {
   )
   const latest = NIST.recent.at(-1) as Pulse
   const sig = await checkSignature(latest, certFor(latest))
+  /* Both states, each from its own pinned set and each decided by the same
+     check, so the table states the history rather than a single moment. */
+  const nowPulse = NIST_CURRENT.recent.at(-1) as Pulse
+  const sigNow = await checkSignature(nowPulse, certForCurrent(nowPulse))
   const last = NIST.preRotation.at(-1) as Pulse
   const gapMin = (Date.parse(NIST.rotation.timeStamp) - Date.parse(last.timeStamp)) / 60_000 - 1
   const d = DRAND.default
@@ -62,9 +66,21 @@ export async function mountProperties(host: HTMLElement): Promise<void> {
     [
       'verifiability',
       'Public verifiability',
-      sig.ok
-        ? cell('verifiability', 'nist', 'holds', 'Hash chain plus an RSA signature that verifies against the published certificate.', 'act4')
-        : cell('verifiability', 'nist', 'partial', `Hashes and links verify (Acts 1–3). The newest pinned pulse’s signature cannot be checked: ${sig.detail}.`, 'finding'),
+      sigNow.ok
+        ? cell(
+            'verifiability',
+            'nist',
+            'holds',
+            `Holds as of ${CAPTURED.current}: pulse #${nowPulse.pulseIndex}’s RSA signature verifies against the certificate it names. It did not on ${CAPTURED.historical}: pulse #${latest.pulseIndex} carried a 4096-bit signature naming a 2048-bit key, so its origin could not be checked at all (${sig.detail}). Hashes and links verified throughout.`,
+            'finding',
+          )
+        : cell(
+            'verifiability',
+            'nist',
+            'partial',
+            `Hashes and links verify (Acts 1–3). The newest pinned pulse’s signature cannot be checked: ${sigNow.detail}.`,
+            'finding',
+          ),
       drandOk
         ? cell('verifiability', 'drand', 'holds', 'Anyone holding the group public key checks a round with one pairing equation.', 'act5')
         : cell('verifiability', 'drand', 'fails', 'The pinned round did not verify.', 'act5'),
