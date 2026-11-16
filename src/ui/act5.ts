@@ -136,7 +136,7 @@ export function mountAct5(host: HTMLElement): void {
     out,
     expert(
       'Chained vs unchained, and where these rounds came from',
-      el('p', {}, 'The default chain signs the previous signature together with the round number, so rounds form a chain back to a genesis seed. quicknet signs only the round number, so a round’s signature can be predicted as a target before it exists. That is what makes timelock encryption possible (see crypto-lab-beacon-lock). Both are unique: one valid signature per round.'),
+      el('p', {}, 'The default chain signs the previous signature together with the round number, so rounds form a chain back to a genesis seed. quicknet signs only the round number, so the message a future round will sign is known in advance and one can encrypt to that round’s not-yet-existing signature. That is what makes timelock encryption possible (see crypto-lab-beacon-lock). The signature itself stays unpredictable until a threshold signs. Both are unique: one valid signature per round.'),
       el('p', {}, `Rounds were captured from api.drand.sh on ${DRAND.fetchedAt.slice(0, 10)}. The v2 API omits randomness, so each round also keeps the value the v1 endpoint published, to compare against.`),
     ),
   )
