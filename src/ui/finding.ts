@@ -29,7 +29,7 @@ export async function mountFinding(host: HTMLElement): Promise<void> {
   const card = el(
     'section',
     { class: 'finding', id: 'finding', 'aria-labelledby': 'finding-h', 'data-claim': 'live-finding' },
-    el('h2', { id: 'finding-h', text: 'Live deployment finding' }),
+    el('h2', { id: 'finding-h', text: 'NIST certificate finding, October 2026' }),
     el(
       'p',
       { class: 'meta' },
@@ -62,7 +62,10 @@ export async function mountFinding(host: HTMLElement): Promise<void> {
         ? 'Origin verifies against the certificate the pulse names.'
         : 'Origin cannot be verified against the certificate the pulse names. That is a statement about what a verifier can check, not a claim that the beacon is compromised.',
     ),
-    el('p', { class: 'muted' }, 'A weekly job (scripts/live-check.mjs) asks beacon.nist.gov whether this still holds and fails when it changes.'),
+    el('p', {}, 'On November 24, 2026, the signature on ',
+      el('a', { href: 'https://beacon.nist.gov/beacon/2.0/chain/2/pulse/2042187', text: 'NIST pulse #2042187' }),
+      ' verified using its named 4096-bit RSA key. The table above uses the October snapshot.'),
+    el('p', { class: 'muted' }, 'The weekly check verifies the newest pulse against its named certificate.'),
   )
   host.appendChild(card)
 }

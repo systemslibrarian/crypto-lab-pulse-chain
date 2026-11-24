@@ -26,7 +26,7 @@ A randomness beacon publishes a fresh random value on a schedule for anyone to u
 
 The draft-text reading reproduces **none** of the 56 pulses. `src/nist/nist.test.ts` pins each row as a regression test.
 
-**A dated finding (captured 2026-10-01).** NIST rotated its signing certificate at pulse 1925734 (2026-09-03 21:08 UTC). That pulse self-reports `statusCode 6` (a gap plus a certificate change) after 10 missing pulses. Every pulse since then carries a 4096-bit signature, while the certificate its `certificateId` names (`CN=engine.beacon.nist.gov`, valid 2026-09-03 to 2027-03-20) has a 2048-bit key. Those signatures cannot be verified against the certificate they name, though every hash, link and precommitment still checks. Pulse 1925733, the last under the previous 4096-bit certificate, verifies completely. `scripts/live-check.mjs` re-asks the live service weekly and fails if this changes.
+**A dated finding (captured 2026-10-01).** NIST rotated its signing certificate at pulse 1925734 (2026-09-03 21:08 UTC). That pulse self-reports `statusCode 6` (a gap plus a certificate change) after 10 missing pulses. The post-rotation pulses in the October 1 snapshot carry a 4096-bit signature, while the certificate their `certificateId` names (`CN=engine.beacon.nist.gov`, valid 2026-09-03 to 2027-03-20) has a 2048-bit key. Those signatures cannot be verified against the certificate they name, though every hash, link and precommitment still checks. Pulse 1925733, the last under the previous 4096-bit certificate, verifies completely. On November 24, 2026, [pulse 2042187](https://beacon.nist.gov/beacon/2.0/chain/2/pulse/2042187) and [pulse 2042257](https://beacon.nist.gov/beacon/2.0/chain/2/pulse/2042257) both verified with the 4096-bit key in their named certificate. The weekly checker verifies the newest pulse against its named certificate.
 
 **Real vs simulated.** Every pulse, certificate and round is real and unmodified, and every check is real cryptography: SHA-512 and SHA-256 from `@noble/hashes`; RSA through WebCrypto plus a hand-rolled `s^e mod n` recovery so the padding can be shown; BLS12-381 hash-to-curve and pairings from `@noble/curves`. Act 6's threshold beacon is real BLS arithmetic with simulated signers and a **trusted dealer**. drand itself uses distributed key generation.
 
@@ -61,7 +61,7 @@ Recompute and tamper with real pulses, verify and break drand rounds, operate a 
 ## What Can Go Wrong
 
 - **Trusting the spec text over the deployment.** A verifier written from NISTIR 8213's prose (8-byte lengths, `uint64` external status, PEM-hashed `certificateId`) rejects every real pulse. This lab only found the deployed layout by testing variants against published values.
-- **Hash chain mistaken for authenticity.** Anyone can extend or re-hash a chain. Only the signature binds a pulse to NIST, and since the 2026-09-03 rotation it cannot be checked against the certificate the pulses name.
+- **Hash chain mistaken for authenticity.** Anyone can extend or re-hash a chain. Only the signature binds a pulse to NIST, and the signatures in the pinned post-rotation sample fail verification against the named certificate.
 - **Skiplist without self-hashes.** Algorithm 6 checks only the links between entries. A path whose pulses do not each hash to their own `outputValue` proves nothing, so the lab checks both.
 - **Operator foreknowledge.** NIST's engine holds each value before release. The precommitment stops it changing its mind after committing; it does not stop it choosing what to commit, or skipping a pulse.
 - **Mixing drand schemes.** Using the wrong DST, group, or chained/unchained message format makes valid rounds fail, or makes a verifier accept a round under the wrong chain. Act 5 and the unit tests exercise each.
@@ -101,7 +101,7 @@ The Playwright preview runs on port **4717**. If your machine's pre-installed Ch
 |---|---|---|
 | Vitest (`npm test`) | **52 tests** | 56 real NIST pulses under both layouts, 2 certificates, RSA verify and recovery, hash chain, precommitment, skiplist; 13 real drand rounds by pairing and randomness; threshold toy; byte and DER helpers |
 | Spec KATs | 7 vectors | RFC 9380 Appendix J.9.1 hash-to-G1 (5), FIPS 180-4 SHA-512 and SHA-256 "abc" (2), in `src/fixtures/kat.json` |
-| Claims suite (`e2e/claims.spec.ts`) | **30 tests** | Headline values re-derived in Node by an independent route; every failure code reached through its control; retirement and a no-op guard; the §4.1d negative claim |
+| Claims suite (`e2e/claims.spec.ts`) | **32 tests** | Headline values re-derived in Node by an independent route; every failure code reached through its control; retirement and a no-op guard; the §4.1d negative claim |
 | a11y gate (`e2e/a11y.spec.ts`) | 2 tests (1280px and 380px), 31 scanned states each | axe WCAG 2.1 A/AA (violations and incomplete), arithmetic text contrast, non-text contrast (empty baseline), reflow at 380px, keyboard-reachable scrollers, no invisible focus targets |
 | Mutation runner (`npm run mutate`) | **16 mutations, 16 killed** | Concrete patches with owning tests; a kill requires the owner to pass unmutated in the same run, the patch to apply, the bundle hash to move, and the mutant to build |
 

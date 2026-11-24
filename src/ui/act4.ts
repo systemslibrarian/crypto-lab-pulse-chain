@@ -9,7 +9,7 @@
  *     Verification proves integrity and origin; it cannot prove the operator
  *     did not know, or choose, the value.
  *
- *  2. A real, dated finding. Since the 2026-09-03 key rotation, pulses carry
+ *  2. A real, dated finding. The pinned October samples after the September key rotation carry
  *     4096-bit signatures while naming a certificate with a 2048-bit key, so
  *     their origin cannot be checked at all — while every hash still passes.
  */
@@ -46,7 +46,7 @@ export function mountAct4(host: HTMLElement): void {
   const sec = panel(
     'act4',
     'Act 4 · Who vouches for the pulse?',
-    'Hashes show a pulse was not changed after the fact. Only the signature says NIST made it, and nothing on this page can say whether NIST knew the value first.',
+    'A matching hash checks the record against its stored output. A valid signature binds it to the signing key. The previous commitment is evidence about when the local random input was known.',
   )
   sec.setAttribute('data-act', '4')
   let which: Key = 'signed'
@@ -55,6 +55,7 @@ export function mountAct4(host: HTMLElement): void {
 
   async function render(): Promise<void> {
     const mine = ++seq
+    out.replaceChildren(el('p', { text: 'Checking the selected pulse…' }))
     const { pulse, prev } = CASES[which]
     const pem = certFor(pulse)
     const sig = await checkSignature(pulse, pem)
@@ -97,7 +98,7 @@ export function mountAct4(host: HTMLElement): void {
           el(
             'ol',
             { class: 'timeline' },
-            el('li', {}, el('strong', { text: `${prev.timeStamp.slice(11, 16)} UTC` }), ` NIST publishes pulse #${prev.pulseIndex}, whose precommitmentValue ${abbrev(prev.precommitmentValue, 10, 6)} is SHA-512 of the value below. The engine already holds that value.`),
+            el('li', {}, el('strong', { text: `${prev.timeStamp.slice(11, 16)} UTC` }), ` NIST publishes pulse #${prev.pulseIndex}, whose precommitmentValue ${abbrev(prev.precommitmentValue, 10, 6)} is SHA-512 of the value below. The engine already holds that local input. The commitment does not establish when the complete outputValue was known.`),
             el('li', {}, el('strong', { text: `${pulse.timeStamp.slice(11, 16)} UTC` }), ` Pulse #${pulse.pulseIndex} reveals localRandomValue ${abbrev(pulse.localRandomValue, 10, 6)}, and every check above passes.`),
           ),
           el('p', { class: 'negative-claim', 'data-claim': 'negative-claim' }, NEGATIVE_CLAIM),
@@ -109,9 +110,9 @@ export function mountAct4(host: HTMLElement): void {
         verdictEl(
           'a4-headline',
           'fail',
-          'HASHES CHECK — ORIGIN CANNOT BE CHECKED',
-          `Every hash passes, but ${sig.detail}. Since the 2026-09-03 rotation, nothing here can say these pulses came from NIST.`,
-          sig.code,
+          own.ok && cid?.ok && pc.ok ? 'HASHES CHECK — ORIGIN CANNOT BE CHECKED' : 'PULSE CHECKS FAILED',
+          `Review the individual checks above. Signature result: ${sig.detail}.`,
+          sig.code ?? own.code ?? cid?.code ?? pc.code,
         ),
       )
     }

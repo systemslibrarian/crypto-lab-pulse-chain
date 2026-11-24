@@ -30,9 +30,11 @@ export function mountAct3(host: HTMLElement): void {
     const path = drop < 0 ? PATH : PATH.filter((_, i) => i !== drop)
     const r = verifySkiplist(path)
     const span = NIST.skiplist.anchor - NIST.skiplist.target
+    const selfHashes = path.map(p => checkOutputValue(p))
+    const endpointsMatch = path[0]?.pulseIndex === NIST.skiplist.target && path.at(-1)?.pulseIndex === NIST.skiplist.anchor
     const rows = path.map((p, i) => {
       const hop = i > 0 ? r.hops[i - 1]! : null
-      const own = checkOutputValue(p)
+      const own = selfHashes[i]!
       return el(
         'tr',
         { class: hop && hop.via === null ? 'row-tampered' : '' },
@@ -59,7 +61,9 @@ export function mountAct3(host: HTMLElement): void {
           el('tbody', {}, ...rows),
         ),
       ),
-      r.ok
+      !endpointsMatch || !selfHashes.every(check => check.ok)
+        ? verdictEl('a3-skiplist', 'fail', 'PATH NOT VERIFIED', 'The path must include the target and anchor, and every pulse must match its own output hash.')
+        : r.ok
         ? verdictEl('a3-skiplist', 'pass', 'PATH VERIFIES', `Each of the ${r.hops.length} hops is carried by a linking field (Algorithm 6). Trusting the anchor now vouches for the target.`)
         : verdictEl(
             'a3-skiplist',

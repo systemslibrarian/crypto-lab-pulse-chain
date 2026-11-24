@@ -475,3 +475,30 @@ test.describe('Live deployment finding', () => {
     await expect(page.locator('td[data-property="verifiability"][data-beacon="nist"] a')).toHaveAttribute('href', '#finding')
   })
 })
+
+test('failed RSA verification cannot leave an intact chain or a verified lesson', async ({ page }) => {
+  await page.addInitScript(() => { SubtleCrypto.prototype.verify = async () => false })
+  await page.reload()
+  await expect(page.locator('[data-check="a2-sig"][data-verdict="fail"]')).toHaveCount(8)
+  await expect(verdictOf(page, 'a2-chain')).toHaveAttribute('data-verdict', 'fail')
+  await expect(verdictOf(page, 'a2-chain')).toContainText('8 checks failed')
+  await page.getByRole('button', { name: 'Start the experiment' }).click()
+  await page.getByRole('button', { name: 'Verify this pulse', exact: true }).click()
+  await expect(verdictOf(page, 'g-verified')).toHaveAttribute('data-verdict', 'fail')
+  await expect(page.getByText('So this random number is trustworthy, right?')).toHaveCount(0)
+})
+
+test('a skiplist with matching stored links still requires matching pulse hashes', async ({ page }) => {
+  const original = NIST.skiplist.pulses[2].localRandomValue as string
+  await page.route('**/assets/*.js', async route => {
+    const response = await route.fetch()
+    const text = await response.text()
+    expect(text.includes(original)).toBe(true)
+    const changed = (original.startsWith('00') ? '01' : '00') + original.slice(2)
+    await route.fulfill({ response, body: text.replaceAll(original, changed) })
+  })
+  await page.reload()
+  await expect(page.locator('[data-check="a3-hop"][data-verdict="fail"]')).toHaveCount(0)
+  await expect(page.locator('[data-check="a3-own"][data-verdict="fail"]')).toHaveCount(1)
+  await expect(verdictOf(page, 'a3-skiplist')).toHaveAttribute('data-verdict', 'fail')
+})

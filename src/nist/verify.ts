@@ -20,6 +20,7 @@ export const FAIL = {
   CERT_UNKNOWN: 'CERT_UNKNOWN',
   SIG_SIZE_MISMATCH: 'SIG_SIZE_MISMATCH',
   SIG_INVALID: 'SIG_INVALID',
+  SIG_UNAVAILABLE: 'SIG_UNAVAILABLE',
   PRECOMMIT_MISMATCH: 'PRECOMMIT_MISMATCH',
   LINK_BROKEN: 'LINK_BROKEN',
   SKIPLIST_BROKEN: 'SKIPLIST_BROKEN',
@@ -113,17 +114,21 @@ export async function checkSignature(p: Pulse, pem: string | undefined, layout: 
       detail: `a ${sigBits}-bit signature cannot come from the ${keyBits}-bit key in the certificate this pulse names`,
     }
   }
-  const key = await crypto.subtle.importKey(
-    'spki',
-    cert.spki as BufferSource,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-512' },
-    false,
-    ['verify'],
-  )
-  const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, sig as BufferSource, signatureInput(p, layout) as BufferSource)
-  return ok
-    ? { ok, sigBits, keyBits, detail: `RSASSA-PKCS1-v1_5 / SHA-512 verifies under the ${keyBits}-bit certificate key` }
-    : { ok, sigBits, keyBits, code: FAIL.SIG_INVALID, detail: 'the signature does not verify over these bytes' }
+  try {
+    const key = await crypto.subtle.importKey(
+      'spki',
+      cert.spki as BufferSource,
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-512' },
+      false,
+      ['verify'],
+    )
+    const ok = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', key, sig as BufferSource, signatureInput(p, layout) as BufferSource)
+    return ok
+      ? { ok, sigBits, keyBits, detail: `RSASSA-PKCS1-v1_5 / SHA-512 verifies under the ${keyBits}-bit certificate key` }
+      : { ok, sigBits, keyBits, code: FAIL.SIG_INVALID, detail: 'the signature does not verify over these bytes' }
+  } catch {
+    return { ok: false, sigBits, keyBits, code: FAIL.SIG_UNAVAILABLE, detail: 'the browser could not perform RSA verification' }
+  }
 }
 
 export interface PrecommitCheck {

@@ -106,8 +106,8 @@ export function mountAct1(host: HTMLElement): void {
           el('th', { scope: 'row', text: 'signatureValue' }),
           el('td', { text: 'sig' }),
           el('td', { class: 'num', text: String(segs.reduce((n, s) => n + s.prefix.length + s.value.length, 0)) }),
-          el('td', { class: 'mono', text: layout.prefixSignatureInOutput ? toHex(beUint(512, layout.lengthPrefix)) : '— (raw, no prefix)' }),
-          el('td', { class: 'mono', text: `${abbrev(pulse.signatureValue.toLowerCase(), 12, 8)} (512 B)` }),
+          el('td', { class: 'mono', text: layout.prefixSignatureInOutput ? toHex(beUint(pulse.signatureValue.length / 2, layout.lengthPrefix)) : '— (raw, no prefix)' }),
+          el('td', { class: 'mono', text: `${abbrev(pulse.signatureValue.toLowerCase(), 12, 8)} (${pulse.signatureValue.length / 2} B)` }),
         ),
       ),
     )

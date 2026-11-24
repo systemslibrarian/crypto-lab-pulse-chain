@@ -8,10 +8,8 @@
  *   NIST  1. the newest pulse still reproduces under the deployed layout
  *            (4-byte prefixes) and still does NOT under the draft text's;
  *         2. certificateId is still SHA-512 over the certificate DER;
- *         3. whether the newest pulse's signature can be verified against the
- *            certificate it names — the page says it cannot (4096-bit
- *            signature, 2048-bit key). If NIST fixes that, Act 4 and the
- *            four-property table are stale and this check fails on purpose.
+ *         3. the newest signature verifies with the named certificate, as on
+ *            2026-11-24. The October mismatch is preserved in the pinned tests.
  *   drand 4. the newest default and quicknet rounds verify by pairing under
  *            the pinned group keys, and SHA-256(signature) matches v1.
  *
@@ -70,7 +68,7 @@ try {
   const keyBits = cert.publicKey.asymmetricKeyDetails?.modulusLength
   const verifies = sig.length * 8 === keyBits && verify('sha512', z4, cert.publicKey, sig)
   console.log(`     signature ${sig.length * 8} bits, certificate key ${keyBits} bits, verifies: ${verifies}`)
-  note(!verifies, 'NIST newest signature still cannot be verified against its named certificate, as Act 4 states (if this FAILS, NIST fixed it: refresh the fixtures and Act 4)')
+  note(verifies, 'NIST newest signature verifies against its named certificate (November 24 baseline)')
 } catch (e) {
   note(false, `NIST fetch: ${e.message}`)
 }

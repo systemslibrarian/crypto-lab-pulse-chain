@@ -8,7 +8,7 @@ export function mountIntro(host: HTMLElement): void {
     el(
       'p',
       {},
-      'A randomness beacon publishes a fresh random number on a fixed schedule, for anyone to use: picking audit samples, drawing lottery winners, choosing who serves on a committee. Everyone gets the same number at the same moment, so nobody can claim they were dealt a different one.',
+      'A randomness beacon publishes a fresh random number on a fixed schedule, for anyone to use: picking audit samples, drawing lottery winners, choosing who serves on a committee. Participants can compare the published value for the same round even if they receive it at different times.',
     ),
     el(
       'p',

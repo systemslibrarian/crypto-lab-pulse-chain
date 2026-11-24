@@ -127,6 +127,10 @@ export function mountGuided(host: HTMLElement): void {
       out.append(checkList(rows))
       const all = rows.every((r) => r.ok)
       out.append(verdictEl('g-verified', all ? 'pass' : 'fail', all ? 'VERIFIED' : 'NOT VERIFIED', all ? 'every check passes.' : ''))
+      if (!all) {
+        out.append(el('p', { text: 'Resolve the failed checks before drawing a conclusion about this pulse.' }))
+        return
+      }
       out.append(
         choice('So this random number is trustworthy, right?', [
           ['Yes', 'It certainly hasn’t been tampered with. Let’s test that claim first.'],
@@ -165,9 +169,14 @@ export function mountGuided(host: HTMLElement): void {
 
   // ── 3. Punchline ──────────────────────────────────────────────────────────
   async function stepPunchline(): Promise<void> {
-    const s = step(3, 'Everything passes')
     const rows = await runChecks(PULSE)
     const all = rows.every((r) => r.ok)
+    const s = step(3, all ? 'Everything passes' : 'Check the restored pulse')
+    if (!all) {
+      s.append(checkList(rows), verdictEl('g-climax', 'fail', 'NOT VERIFIED'))
+      flow.appendChild(s)
+      return
+    }
     s.append(
       el('p', {}, 'The original pulse, untouched, through the same five checks:'),
       checkList(rows),
@@ -204,7 +213,7 @@ export function mountGuided(host: HTMLElement): void {
             'li',
             {},
             el('strong', { text: `${PULSE.timeStamp.slice(11, 16)} UTC` }),
-            ` NIST publishes X in pulse #${PULSE.pulseIndex}. Everyone else learns it now.`,
+            ` NIST publishes X in pulse #${PULSE.pulseIndex}. This pulse publicly reveals that local input. The later outputValue also depends on the other fields and signature.`,
           ),
         ),
         el('p', { class: 'climax-lesson', 'data-claim': 'g-lesson', text: 'Nothing failed. That is the lesson.' }),

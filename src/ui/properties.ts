@@ -30,7 +30,7 @@ export async function mountProperties(host: HTMLElement): Promise<void> {
   const sec = panel(
     'properties',
     'What you can and cannot check, side by side',
-    'Tamper evidence plus the four properties a beacon is judged on. Each verdict comes from a check the page ran; follow its link to the experiment that shows it.',
+    'Tamper evidence plus the four properties a beacon is judged on. The table combines checks on the pinned samples with assumptions about the operators. Follow each link to its experiment.',
   )
   const latest = NIST.recent.at(-1) as Pulse
   const sig = await checkSignature(latest, certFor(latest))
@@ -44,14 +44,14 @@ export async function mountProperties(host: HTMLElement): Promise<void> {
     [
       'tamper',
       'Tampering is detectable',
-      cell('tamper', 'nist', 'holds', 'SHA-512 hash chain: one flipped bit breaks the pulse’s own hash and every later link.', 'act2'),
+      cell('tamper', 'nist', 'holds', 'SHA-512 hash chain: a changed field fails its self-hash check. If its output hash is recomputed, the next stored previous link disagrees. Later unchanged adjacent pairs can still match.', 'act2'),
       cell('tamper', 'drand', 'holds', 'Each round’s BLS signature covers its round number (and, on the default chain, the previous signature).', 'act5'),
     ],
     [
       'unpredictability',
       'Unpredictability',
-      cell('unpredictability', 'nist', 'partial', 'Unpredictable to outsiders until publication. Not to NIST: the engine holds each value one pulse early.', 'act4'),
-      cell('unpredictability', 'drand', 'holds', 'Unless at least the threshold of League members collude, no one can compute a round before it is signed.', 'act6'),
+      cell('unpredictability', 'nist', 'partial', 'Outsiders rely on the operator to keep its input secret until publication. The prior commitment is evidence that the operator already held that input.', 'act4'),
+      cell('unpredictability', 'drand', 'holds', 'Early prediction requires threshold participation, assuming secure keys and enough honest members who follow the release schedule.', 'act6'),
     ],
     [
       'uniqueness',

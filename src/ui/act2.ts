@@ -62,6 +62,7 @@ export function mountAct2(host: HTMLElement): void {
   let seq = 0
   async function render(announce = true): Promise<void> {
     const mine = ++seq
+    out.replaceChildren(el('p', { text: 'Checking the selected chain…' }))
     const chain = RUN.map((p) => {
       if (p.pulseIndex !== forged) return p
       const t = withField(p, 'localRandomValue', flipFirstByte(p.localRandomValue))
@@ -70,12 +71,14 @@ export function mountAct2(host: HTMLElement): void {
     const sigs = await Promise.all(chain.map((p) => checkSignature(p, certFor(p))))
     if (mine !== seq) return
     clear(out)
+    let failedChecks = 0
     const rows = chain.map((p, i) => {
       const prev = chain[i - 1]
       const s = sigs[i]!
       const own = checkOutputValue(p)
       const link = prev ? checkPreviousLink(prev, p) : null
       const pc = prev ? checkPrecommitment(prev, p) : null
+      failedChecks += [own, s, link, pc].filter(check => check && !check.ok).length
       return el(
         'tr',
         { class: p.pulseIndex === forged ? 'row-tampered' : '', 'data-pulse': String(p.pulseIndex) },
@@ -105,10 +108,12 @@ export function mountAct2(host: HTMLElement): void {
       ),
       el('tbody', {}, ...rows),
     )
-    const failures = out.ownerDocument.createDocumentFragment()
     out.append(scroller('Hash chain of eight real pulses', table))
     if (forged === null) {
-      out.append(verdictEl('a2-chain', 'pass', 'INTACT', `All ${chain.length} pulses hash, link, open their precommitments and carry valid NIST signatures.`))
+      const complete = chain.length === 8 && failedChecks === 0
+      out.append(complete
+        ? verdictEl('a2-chain', 'pass', 'INTACT', 'All eight self-hashes and signatures and all seven adjacent links and precommitments passed.')
+        : verdictEl('a2-chain', 'fail', 'CHAIN NOT VERIFIED', `Checked ${chain.length} of eight expected pulses; ${failedChecks} checks failed.`))
       if (announce) status.textContent = ''
     } else {
       const i = chain.findIndex((p) => p.pulseIndex === forged)
@@ -133,7 +138,6 @@ export function mountAct2(host: HTMLElement): void {
       )
       if (announce) status.textContent = `Rewrote pulse #${forged}: ${caught.length} checks failed.`
     }
-    out.append(failures)
   }
 
   sec.append(
